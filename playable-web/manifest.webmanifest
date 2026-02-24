@@ -1,0 +1,18 @@
+{
+  "name": "RescapeR",
+  "short_name": "RescapeR",
+  "description": "IT 회사 탈출 로그바니아 액션 게임",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101a28",
+  "theme_color": "#101a28",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
