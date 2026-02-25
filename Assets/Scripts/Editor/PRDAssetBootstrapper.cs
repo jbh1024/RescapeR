@@ -60,12 +60,29 @@ namespace RescapeR.Editor
                 asset.backstabMultiplier = row.BackstabMultiplier;
                 asset.hitSfxLabel = row.HitSfx;
                 asset.specialEffectLabel = row.SpecialEffect;
+                asset.affixes = GetAffixes(row.Id);
                 asset.breaksSuperArmor = row.Id == "weapon_keyboard_aluminum";
                 asset.rangedReturnAttack = row.Id == "weapon_keyboard_capacitive";
                 asset.dualWieldMode = row.Id == "weapon_keyboard_split";
+                asset.canThrow = (asset.affixes & WeaponAffix.Wireless) != 0 || asset.rangedReturnAttack;
                 asset.supportsAutoFire = (asset.affixes & WeaponAffix.Macro) != 0;
 
                 EditorUtility.SetDirty(asset);
+            }
+        }
+
+        private static WeaponAffix GetAffixes(string weaponId)
+        {
+            switch (weaponId)
+            {
+                case "weapon_keyboard_dusty":
+                    return WeaponAffix.Sticky;
+                case "weapon_keyboard_capacitive":
+                    return WeaponAffix.Wireless;
+                case "weapon_keyboard_split":
+                    return WeaponAffix.Macro;
+                default:
+                    return WeaponAffix.None;
             }
         }
 

@@ -3,6 +3,8 @@ const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 const statsEl = document.getElementById("stats");
 const logEl = document.getElementById("log");
+const controlsEl = document.getElementById("controls");
+const layoutEl = document.querySelector(".layout");
 const overlayEl = document.getElementById("overlay");
 
 const WIDTH = canvas.width;
@@ -10,12 +12,25 @@ const HEIGHT = canvas.height;
 const GROUND_Y = HEIGHT - 75;
 const WORLD_WIDTH = 3200;
 const ENABLE_RANGED_ATTACKS = false;
-const APP_VERSION = "1.0.0-prod";
+const ENEMY_AOE_SCALE = 0.78;
+const APP_VERSION = "1.0.3-prod";
 const META_STORAGE_KEY = "rescaperMeta";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const SETTINGS_STORAGE_KEY = "rescaperSettings";
 let audioCtx = null;
 let audioUnlocked = false;
+const SaveSystem = window.RescapeRSaveSystem;
+const CombatSystem = window.RescapeRCombatSystem;
+const UiSystem = window.RescapeRUiSystem;
+const RenderSystem = window.RescapeRRenderSystem;
+const MonsterArchetypeSystem = window.RescapeRMonsterArchetypeSystem;
+const FloorSystem = window.RescapeRFloorSystem;
+
+if (!SaveSystem || !CombatSystem || !UiSystem || !RenderSystem || !MonsterArchetypeSystem || !FloorSystem) {
+  throw new Error("RescapeR system scripts are missing.");
+}
+
+let infoPanelsVisible = false;
 
 // ============================================
 // 상수 및 설정
@@ -253,25 +268,14 @@ function addScreenFx(type, opts = {}) {
 }
 
 function loadSettings() {
-  const base = { sfxVolume: 0.55, reducedFx: false };
-  const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-  if (!raw) return base;
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      sfxVolume: typeof parsed.sfxVolume === "number" ? Math.max(0, Math.min(1, parsed.sfxVolume)) : base.sfxVolume,
-      reducedFx: Boolean(parsed.reducedFx),
-    };
-  } catch {
-    return base;
-  }
+  return SaveSystem.loadSettings(localStorage, SETTINGS_STORAGE_KEY);
 }
 
 function saveSettings() {
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+  SaveSystem.saveSettings(localStorage, SETTINGS_STORAGE_KEY, {
     sfxVolume: state.sfxVolume,
     reducedFx: state.reducedFx,
-  }));
+  });
 }
 
 function registerServiceWorker() {
@@ -331,87 +335,23 @@ const state = {
 };
 
 function loadMeta() {
-  const raw = localStorage.getItem(META_STORAGE_KEY);
-  const base = {
-    items: { cpu: 0, ram: 0, badge: 0 },
-    damageBonus: 0,
-    maxHpBonus: 0,
-    speedBonus: 0,
-    deathCount: 0,
-    recentDeaths: 0,
-    totalClears: 0,
-    bestTimeMs: 0,
-    bestCombo: 0,
-    totalPlayTime: 0,
-    unlockedItems: [],
-  };
-  if (!raw) return base;
-  try {
-    const parsed = JSON.parse(raw);
-    const unlockedItems = Array.isArray(parsed.unlockedItems) ? parsed.unlockedItems : [];
-    return {
-      ...base,
-      ...parsed,
-      items: { ...base.items, ...(parsed.items || {}) },
-      unlockedItems,
-    };
-  } catch {
-    return base;
-  }
+  return SaveSystem.loadMeta(localStorage, META_STORAGE_KEY);
 }
 
 function saveMeta() {
-  localStorage.setItem(META_STORAGE_KEY, JSON.stringify(state.meta));
+  SaveSystem.saveMeta(localStorage, META_STORAGE_KEY, state.meta);
 }
 
 function loadRunSave() {
-  const raw = localStorage.getItem(SAVE_STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    if (!parsed.player || !parsed.meta) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  return SaveSystem.loadRunSave(localStorage, SAVE_STORAGE_KEY);
 }
 
 function saveRunSnapshot() {
-  if (!state.player || !state.floor) return;
-  const payload = {
-    player: {
-      currentFloor: floorLabel(state.floor.info.n),
-      floorIndex: state.floorIndex,
-      hp: Math.max(1, Math.round(state.player.hp)),
-      gold: state.player.gold,
-      inventory: [...state.player.inventory],
-      codename: state.player.codename,
-      level: state.player.level,
-      xp: state.player.xp,
-      needXp: state.player.needXp,
-      skillNames: [...state.player.skillNames],
-      weapon: state.player.weapon,
-      styleId: state.player.styleId || "striker",
-      damageMul: state.player.damageMul / ((state.player.weaponDamageMul || 1) * (state.player.styleDamageMul || 1)),
-      speedMul: state.player.speedMul / (state.player.styleSpeedMul || 1),
-      maxHp: state.player.maxHp,
-      maxHpBase: state.player.maxHp - (state.player.styleHpBonus || 0),
-      lifeStealOnKill: state.player.lifeStealOnKill,
-      attackCdMul: state.player.attackCdMul / ((state.player.weaponAttackCdMul || 1) * (state.player.styleAttackCdMul || 1)),
-      dashCdMul: state.player.dashCdMul / (state.player.styleDashCdMul || 1),
-    },
-    meta: {
-      totalPlayTime: Math.round(state.meta.totalPlayTime + state.runElapsedMs / 1000),
-      deathCount: state.runDeathCount,
-      unlockedItems: [...state.meta.unlockedItems],
-    },
-  };
-  localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(payload));
+  SaveSystem.saveRunSnapshot(localStorage, SAVE_STORAGE_KEY, state, floorLabel);
 }
 
 function clearRunSnapshot() {
-  localStorage.removeItem(SAVE_STORAGE_KEY);
+  SaveSystem.clearRunSnapshot(localStorage, SAVE_STORAGE_KEY);
 }
 
 function floorLabel(n) {
@@ -419,18 +359,11 @@ function floorLabel(n) {
 }
 
 function formatDuration(ms) {
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return UiSystem.formatDuration(ms);
 }
 
 function gradeByTime(ms) {
-  const minutes = ms / 60000;
-  if (minutes < 30) return "S (칼퇴의 신)";
-  if (minutes < 45) return "A (모범 사원)";
-  if (minutes < 60) return "B (성실 근무자)";
-  return "C (야근 확정)";
+  return UiSystem.gradeByTime(ms);
 }
 
 function floorProfile(info) {
@@ -523,12 +456,19 @@ function log(msg) {
   logEl.innerHTML = state.logs.map((x) => `<div>${x}</div>`).join("");
 }
 
+function applyInfoPanelsVisibility() {
+  layoutEl.classList.toggle("show-panels", infoPanelsVisible);
+  controlsEl.classList.toggle("hidden", !infoPanelsVisible);
+  logEl.classList.toggle("hidden", !infoPanelsVisible);
+  statsEl.classList.add("hidden");
+}
+
 function basePlayer() {
   const p = {
     x: 90,
-    y: GROUND_Y - 64,
+    y: GROUND_Y - 68,
     w: 36,
-    h: 56,
+    h: 60,
     vx: 0,
     vy: 0,
     facing: 1,
@@ -624,186 +564,38 @@ function themeByFloor(n) {
 }
 
 function floorDifficultyCurve(index) {
-  const t = index + 1;
-  const ramp = 1 + Math.pow(t / 14, 1.35) * 1.75;
-  return {
-    mobHp: Math.round(22 + ramp * 7.5),
-    mobDamage: Math.round(6 + ramp * 2.1),
-    mobSpeedBase: 1.05 + t * 0.05,
-    bossHpMul: 0.88 + ramp * 0.66,
-    bossDamageMul: 0.9 + ramp * 0.24,
-    skillCdMul: Math.max(0.74, 1.08 - t * 0.02),
-  };
+  return FloorSystem.floorDifficultyCurve(index);
 }
 
 function mobBehaviorForZone(zone, i) {
-  const table = {
-    parking: ["rush", "rush", "flank"],
-    cafeteria: ["rush", "kite", "flank"],
-    lobby: ["kite", "rush", "kite"],
-    showroom: ["kite", "flank", "rush"],
-    mobile: ["flank", "kite", "rush"],
-    server: ["kite", "kite", "flank"],
-    glitch: ["flank", "rush", "kite"],
-    marketing: ["kite", "flank", "kite"],
-    support: ["rush", "flank", "kite"],
-    executive: ["flank", "kite", "rush"],
-  };
-  const arr = table[zone] || ["rush", "flank", "kite"];
-  return arr[i % arr.length];
+  return FloorSystem.mobBehaviorForZone(zone, i);
+}
+
+function zoneArchetypePlan(zone) {
+  return MonsterArchetypeSystem.zonePlan(zone);
+}
+
+function pickMobArchetype(zone, mobName, index, rand) {
+  return MonsterArchetypeSystem.pickArchetype(zone, mobName, index, rand);
 }
 
 function makeFloor(index) {
   const info = FLOOR_PLAN[index];
   const rand = seededRandom(state.rngSeed + index * 9991 + state.player.level * 111);
   const profile = floorProfile(info);
-  const curve = floorDifficultyCurve(index);
-  const platforms = [{ x: 0, y: GROUND_Y, w: WORLD_WIDTH, h: 80 }];
-  const enemies = [];
-  const pickups = [];
-
-  for (let i = 0; i < 14; i++) {
-    const w = 170 + rand() * 180;
-    const x = 180 + rand() * (WORLD_WIDTH - 500);
-    const y = 160 + rand() * (GROUND_Y - 210);
-    platforms.push({ x, y, w, h: 20 });
-  }
-
-  const difficulty = index + 1;
-  const hasBoss = Boolean(info.boss);
-  const normalCount = info.safeZone ? 0 : (hasBoss
-    ? 2 + Math.floor(rand() * 2) + Math.floor(difficulty / 5)
-    : 5 + Math.floor(rand() * 3) + Math.floor(difficulty / 4));
-  for (let i = 0; i < normalCount; i++) {
-    const mobHp = curve.mobHp + Math.round(rand() * 10);
-    enemies.push({
-      x: 350 + rand() * (WORLD_WIDTH - 650),
-      y: GROUND_Y - 44,
-      w: 32,
-      h: 44,
-      hp: mobHp,
-      maxHp: mobHp,
-      damage: curve.mobDamage + Math.floor(rand() * 2),
-      speed: curve.mobSpeedBase + rand() * 1.1,
-      dir: rand() < 0.5 ? -1 : 1,
-      type: "mob",
-      name: pickFrom(rand, profile.mobNames),
-      zone: info.zone,
-      variant: Math.floor(rand() * 3),
-      xp: 16 + difficulty * 2,
-      hitFlash: 0,
-      slowTimer: 0,
-      dotTimer: 0,
-      dotTick: 0,
-      dotDamage: 0,
-      stunTimer: 0,
-      skillCd: Math.round(1800 * curve.skillCdMul),
-      skillTimer: 880 + rand() * 820,
-      walkAnim: rand() * 10,
-      behavior: mobBehaviorForZone(info.zone, i),
-      aiCooldown: 500 + rand() * 700,
-      defeated: false,
-    });
-  }
-
-  if (hasBoss && !info.safeZone) {
-    const bossBaseHp = info.finalBoss ? 620 : 280;
-    const bossBaseDamage = info.finalBoss ? 34 : 18;
-    enemies.push({
-      x: WORLD_WIDTH - 320,
-      y: GROUND_Y - 84,
-      w: 64,
-      h: 84,
-      hp: Math.round((bossBaseHp + difficulty * 9) * curve.bossHpMul),
-      maxHp: Math.round((bossBaseHp + difficulty * 9) * curve.bossHpMul),
-      damage: Math.round(bossBaseDamage * curve.bossDamageMul),
-      speed: (info.finalBoss ? 2.1 : 1.4) + difficulty * 0.03,
-      dir: -1,
-      type: "boss",
-      name: info.boss,
-      zone: info.zone,
-      variant: Math.floor(rand() * 3),
-      xp: info.finalBoss ? 220 : 120,
-      hitFlash: 0,
-      slowTimer: 0,
-      dotTimer: 0,
-      dotTick: 0,
-      dotDamage: 0,
-      stunTimer: 0,
-      skillCd: Math.round((info.finalBoss ? 1300 : 1850) * curve.skillCdMul),
-      skillTimer: 900 + rand() * 900,
-      walkAnim: rand() * 10,
-      phaseIndex: 1,
-      defeated: false,
-    });
-  }
-
-  if (info.finalBoss) {
-    const executivePool = [...EXECUTIVE_MINI_BOSSES];
-    for (let i = 0; i < 2; i++) {
-      const pickIndex = Math.floor(rand() * executivePool.length);
-      const execName = executivePool.splice(pickIndex, 1)[0];
-      enemies.push({
-        x: WORLD_WIDTH - 900 + i * 220,
-        y: GROUND_Y - 72,
-        w: 54,
-        h: 72,
-        hp: Math.round((240 + difficulty * 9) * (curve.bossHpMul * 0.88)),
-        maxHp: Math.round((240 + difficulty * 9) * (curve.bossHpMul * 0.88)),
-        damage: Math.round(18 * curve.bossDamageMul),
-        speed: 1.55 + difficulty * 0.03,
-        dir: -1,
-        type: "exec",
-        name: execName,
-        zone: info.zone,
-        variant: Math.floor(rand() * 3),
-        xp: 95,
-        hitFlash: 0,
-        slowTimer: 0,
-        dotTimer: 0,
-        dotTick: 0,
-        dotDamage: 0,
-        stunTimer: 0,
-        skillCd: Math.round((1600 + rand() * 500) * curve.skillCdMul),
-        skillTimer: 780 + rand() * 700,
-        walkAnim: rand() * 10,
-        phaseIndex: 1,
-        defeated: false,
-      });
-    }
-  }
-
-  if (!info.safeZone && rand() < 0.85) {
-    const key = randomItemKey(rand);
-    pickups.push({
-      x: 400 + rand() * (WORLD_WIDTH - 800),
-      y: GROUND_Y - 28,
-      w: 24,
-      h: 24,
-      type: "artifact",
-      key,
-    });
-  }
-
-  if (rand() < (info.safeZone ? 1 : 0.65)) {
-    pickups.push({
-      x: 300 + rand() * (WORLD_WIDTH - 600),
-      y: GROUND_Y - 24,
-      w: 20,
-      h: 20,
-      type: "heal",
-      heal: 28,
-    });
-  }
-
-  return {
+  const floor = FloorSystem.buildFloor({
+    index,
     info,
-    platforms,
-    enemies,
-    pickups,
-    gateOpen: info.safeZone,
-    gate: { x: WORLD_WIDTH - 150, y: GROUND_Y - 86, w: 42, h: 86 },
-    shop: info.safeZone ? { x: 220, y: GROUND_Y - 90, w: 58, h: 90 } : null,
+    rand,
+    profile,
+    worldWidth: WORLD_WIDTH,
+    groundY: GROUND_Y,
+    pickMobArchetype,
+    randomItemKey,
+    executiveMiniBosses: EXECUTIVE_MINI_BOSSES,
+  });
+  return {
+    ...floor,
     theme: themeByFloor(info.n),
   };
 }
@@ -1056,7 +848,7 @@ function buyFromShop(idx) {
 }
 
 function isBackAttack(player, enemy) {
-  return player.facing === enemy.dir;
+  return CombatSystem.isBackAttack(player, enemy);
 }
 
 function spawnKeyboardProjectile(opts = {}) {
@@ -1112,11 +904,7 @@ function triggerCeoCutin(title, text) {
 }
 
 function comboMultiplier() {
-  if (state.comboHits >= 30) return 1.2;
-  if (state.comboHits >= 20) return 1.14;
-  if (state.comboHits >= 10) return 1.08;
-  if (state.comboHits >= 5) return 1.04;
-  return 1;
+  return CombatSystem.comboMultiplier(state.comboHits);
 }
 
 function registerComboHit() {
@@ -1650,11 +1438,16 @@ function spawnEnemyProjectile(x, y, vx, vy, opts = {}) {
 }
 
 function spawnHazard(x, y, w, h, opts = {}) {
+  const sw = Math.max(36, w * ENEMY_AOE_SCALE);
+  const sh = Math.max(24, h * ENEMY_AOE_SCALE);
+  const isGroundBound = Math.abs((y + h) - GROUND_Y) <= 4;
+  const sx = x + (w - sw) * 0.5;
+  const sy = isGroundBound ? (y + h - sh) : (y + (h - sh) * 0.5);
   state.hazards.push({
-    x,
-    y,
-    w,
-    h,
+    x: sx,
+    y: sy,
+    w: sw,
+    h: sh,
     life: opts.life || 1700,
     damage: opts.damage || 10,
     tick: 0,
@@ -1666,11 +1459,16 @@ function spawnHazard(x, y, w, h, opts = {}) {
 }
 
 function spawnEnemyTelegraph(x, y, w, h, opts = {}) {
+  const sw = Math.max(36, w * ENEMY_AOE_SCALE);
+  const sh = Math.max(24, h * ENEMY_AOE_SCALE);
+  const isGroundBound = Math.abs((y + h) - GROUND_Y) <= 4;
+  const sx = x + (w - sw) * 0.5;
+  const sy = isGroundBound ? (y + h - sh) : (y + (h - sh) * 0.5);
   state.enemyTelegraphs.push({
-    x,
-    y,
-    w,
-    h,
+    x: sx,
+    y: sy,
+    w: sw,
+    h: sh,
     life: opts.life || 480,
     label: opts.label || "WARNING",
     color: opts.color || "rgba(255,110,110,0.2)",
@@ -2167,18 +1965,46 @@ function execPaletteByZone(zone) {
 }
 
 function drawMobAccessory(e, x, y, pixelSize) {
+  const archetype = e.archetype || mobArchetypeFromName(e.name || "");
   const tint = zoneTint(e.zone, e.variant || 0);
   const v = (e.variant || 0) % 3;
   const blink = 0.7 + Math.abs(Math.sin(performance.now() * 0.01 + (e.x || 0) * 0.02)) * 0.3;
   const soft = `rgba(255,255,255,${0.22 * blink})`;
   if (e.zone === "parking") {
-    // 헤드라이트 + 번호판
-    drawPixelRect(x + 0, y + 2, 2, 2, `rgba(240,248,255,${0.86 * blink})`);
-    drawPixelRect(x + 6, y + 2, 2, 2, `rgba(240,248,255,${0.86 * blink})`);
-    drawPixelRect(x + 2, y + 5, 4, 1, "rgba(180,210,236,0.8)");
-    drawPixelRect(x + 2, y + 6, 4, 1, "rgba(90,122,152,0.8)");
-    if (v === 1) drawPixelRect(x + 3, y + 1, 2, 1, "rgba(255,235,185,0.85)");
-    if (v === 2) drawPixelRect(x + 0, y + 6, 2, 1, "rgba(120,164,200,0.8)");
+    if (archetype === "drone") {
+      // 세단 미믹: 전면 라이트 + 번호판
+      drawPixelRect(x + 0, y + 2, 2, 2, `rgba(240,248,255,${0.9 * blink})`);
+      drawPixelRect(x + 6, y + 2, 2, 2, `rgba(240,248,255,${0.9 * blink})`);
+      drawPixelRect(x + 2, y + 5, 4, 1, "rgba(188,218,246,0.84)");
+      drawPixelRect(x + 2, y + 6, 4, 1, "rgba(94,126,158,0.84)");
+    } else if (archetype === "wisp") {
+      // 매연 유령: 연기 꼬리
+      drawPixelRect(x + 3, y + 0, 2, 1, "rgba(218,236,255,0.62)");
+      drawPixelRect(x + 2, y + 1, 4, 1, "rgba(184,210,238,0.52)");
+      drawPixelRect(x + 1, y + 6, 6, 1, "rgba(154,186,220,0.58)");
+    } else if (archetype === "bulky") {
+      // 불법주차 골렘: 경고 스티커
+      drawPixelRect(x + 2, y + 2, 4, 1, "rgba(255,228,120,0.9)");
+      drawPixelRect(x + 2, y + 3, 4, 1, "rgba(198,88,76,0.9)");
+      drawPixelRect(x + 3, y + 6, 2, 1, "rgba(214,194,176,0.78)");
+    } else if (archetype === "caster") {
+      // 후진 알람 정령: 경광등
+      drawPixelRect(x + 3, y + 0, 2, 1, "rgba(255,112,112,0.92)");
+      drawPixelRect(x + 2, y + 1, 4, 1, "rgba(255,232,186,0.76)");
+      drawPixelRect(x + 3, y + 5, 2, 2, `rgba(255,156,120,${0.82 * blink})`);
+    } else if (archetype === "agent") {
+      // 주차딱지 집행관: 딱지 클립보드
+      drawPixelRect(x + 6, y + 2, 2, 3, "rgba(255,216,140,0.92)");
+      drawPixelRect(x + 6, y + 5, 2, 1, "rgba(184,140,92,0.9)");
+      drawPixelRect(x + 1, y + 6, 2, 1, "rgba(176,202,230,0.8)");
+    } else {
+      // 차단기 망령/기타: 차단봉 스트라이프
+      drawPixelRect(x + 0, y + 1, 1, 6, "rgba(255,116,116,0.86)");
+      drawPixelRect(x + 1, y + 1, 1, 6, "rgba(255,244,196,0.82)");
+      drawPixelRect(x + 6, y + 6, 2, 1, "rgba(156,188,222,0.78)");
+    }
+    if (v === 1) drawPixelRect(x + 3, y + 1, 2, 1, "rgba(255,235,185,0.82)");
+    if (v === 2) drawPixelRect(x + 0, y + 6, 2, 1, "rgba(120,164,200,0.78)");
   } else if (e.zone === "cafeteria") {
     // 식판 + 김
     drawPixelRect(x + 2, y + 6, 4, 1, "rgba(186,130,86,0.82)");
@@ -2245,6 +2071,19 @@ function drawMobAccessory(e, x, y, pixelSize) {
     drawPixelRect(x + 2, y + 1, 1, 1, "rgba(255,224,150,0.92)");
     if (v === 1) drawPixelRect(x + 5, y + 1, 1, 1, "rgba(255,224,154,0.9)");
     if (v === 2) drawPixelRect(x + 1, y + 2, 1, 2, "rgba(214,164,244,0.85)");
+  }
+  if (archetype === "drone") {
+    drawPixelRect(x + 1, y - 1, 6, 1, "rgba(220,245,255,0.72)");
+    drawPixelRect(x + 2, y - 2, 4, 1, "rgba(160,220,245,0.68)");
+  } else if (archetype === "crawler") {
+    drawPixelRect(x - 1, y + 6, 2, 1, "rgba(214,232,244,0.72)");
+    drawPixelRect(x + 7, y + 6, 2, 1, "rgba(214,232,244,0.72)");
+  } else if (archetype === "caster") {
+    drawPixelRect(x + 3, y - 1, 2, 1, "rgba(236,216,255,0.78)");
+    drawPixelRect(x + 2, y - 2, 4, 1, "rgba(196,156,242,0.68)");
+  } else if (archetype === "glitcher") {
+    drawPixelRect(x + 0, y + 3, 2, 1, "rgba(255,150,200,0.85)");
+    drawPixelRect(x + 6, y + 1, 2, 1, "rgba(170,245,255,0.82)");
   }
   drawPixelRect(x - 1, y + 2, 1, 3, tint);
   drawPixelRect(x + 8, y + 3, 1, 2, withAlpha(tint, 0.7));
@@ -2681,6 +2520,42 @@ function buildMobSpriteSet(kind) {
       s[key][3][1] = 2; s[key][3][6] = 2;
       s[key][7][3] = 4; s[key][7][4] = 4;
     }
+  } else if (kind === "drone") {
+    // 드론/기계형: 상단 로터 + 중심 코어
+    for (const key of ["idle", "walk1", "walk2"]) {
+      s[key][0][1] = 4; s[key][0][2] = 4; s[key][0][5] = 4; s[key][0][6] = 4;
+      s[key][1][0] = 1; s[key][1][7] = 1;
+      s[key][2][3] = 3; s[key][2][4] = 3;
+      s[key][6][2] = 0; s[key][6][5] = 0;
+      s[key][7][1] = 0; s[key][7][6] = 0;
+    }
+  } else if (kind === "crawler") {
+    // 포식/하층형: 저중심 + 다리 강조
+    for (const key of ["idle", "walk1", "walk2"]) {
+      s[key][0][2] = 0; s[key][0][5] = 0;
+      s[key][1][1] = 2; s[key][1][6] = 2;
+      s[key][5][0] = 4; s[key][5][7] = 4;
+      s[key][6][0] = 4; s[key][6][7] = 4;
+      s[key][7][2] = 4; s[key][7][5] = 4;
+    }
+  } else if (kind === "caster") {
+    // 정령/주술형: 상체 집중 + 하단 흐름
+    for (const key of ["idle", "walk1", "walk2"]) {
+      s[key][0][3] = 3; s[key][0][4] = 3;
+      s[key][1][2] = 1; s[key][1][5] = 1;
+      s[key][2][1] = 2; s[key][2][6] = 2;
+      s[key][6][3] = 0; s[key][6][4] = 0;
+      s[key][7][2] = 1; s[key][7][5] = 1;
+    }
+  } else if (kind === "glitcher") {
+    // 글리치형: 비대칭 파손 실루엣
+    for (const key of ["idle", "walk1", "walk2"]) {
+      s[key][1][0] = 0; s[key][1][7] = 1;
+      s[key][2][2] = 3; s[key][2][5] = 0;
+      s[key][3][1] = 4; s[key][3][6] = 2;
+      s[key][5][0] = 1; s[key][5][7] = 4;
+      s[key][7][3] = 0; s[key][7][4] = 4;
+    }
   }
   return s;
 }
@@ -2692,29 +2567,26 @@ const MOB_ARCHETYPE_SPRITES = {
   watcher: buildMobSpriteSet("watcher"),
   beast: buildMobSpriteSet("beast"),
   agent: buildMobSpriteSet("agent"),
+  drone: buildMobSpriteSet("drone"),
+  crawler: buildMobSpriteSet("crawler"),
+  caster: buildMobSpriteSet("caster"),
+  glitcher: buildMobSpriteSet("glitcher"),
 };
 
 function mobArchetypeFromName(name = "") {
-  if (!name) return "base";
-  const watcherKeywords = ["비홀더", "CCTV", "스피커", "드론", "스캐너", "감찰"];
-  const wispKeywords = ["유령", "정령", "망령", "잔상", "메아리", "환영"];
-  const beastKeywords = ["거미", "히드라", "포식자", "박쥐", "사냥개"];
-  const bulkyKeywords = ["골렘", "미믹", "병사", "파수", "집행관"];
-  const agentKeywords = ["암살자", "심사관", "검열관"];
-  if (watcherKeywords.some((k) => name.includes(k))) return "watcher";
-  if (wispKeywords.some((k) => name.includes(k))) return "wisp";
-  if (beastKeywords.some((k) => name.includes(k))) return "beast";
-  if (bulkyKeywords.some((k) => name.includes(k))) return "bulky";
-  if (agentKeywords.some((k) => name.includes(k))) return "agent";
-  return "base";
+  return MonsterArchetypeSystem.resolveNameArchetype(name);
 }
 
 function mobVisualProfile(e) {
-  const archetype = mobArchetypeFromName(e.name || "");
+  const archetype = e.archetype || mobArchetypeFromName(e.name || "");
+  if (archetype === "drone") return { spriteSet: MOB_ARCHETYPE_SPRITES.drone, pixelSize: 2.14, lift: -1 };
   if (archetype === "watcher") return { spriteSet: MOB_ARCHETYPE_SPRITES.watcher, pixelSize: 2.25, lift: 2 };
+  if (archetype === "caster") return { spriteSet: MOB_ARCHETYPE_SPRITES.caster, pixelSize: 2.2, lift: 0 };
   if (archetype === "wisp") return { spriteSet: MOB_ARCHETYPE_SPRITES.wisp, pixelSize: 2.15, lift: 1 };
   if (archetype === "beast") return { spriteSet: MOB_ARCHETYPE_SPRITES.beast, pixelSize: 2.28, lift: 3 };
+  if (archetype === "crawler") return { spriteSet: MOB_ARCHETYPE_SPRITES.crawler, pixelSize: 2.35, lift: 4 };
   if (archetype === "bulky") return { spriteSet: MOB_ARCHETYPE_SPRITES.bulky, pixelSize: 2.3, lift: 3 };
+  if (archetype === "glitcher") return { spriteSet: MOB_ARCHETYPE_SPRITES.glitcher, pixelSize: 2.24, lift: 2 };
   if (archetype === "agent") return { spriteSet: MOB_ARCHETYPE_SPRITES.agent, pixelSize: 2.18, lift: 2 };
   return { spriteSet: MOB_ARCHETYPE_SPRITES.base, pixelSize: 2.2, lift: 2 };
 }
@@ -3434,7 +3306,7 @@ function drawPlatforms() {
 function drawPlayer(p) {
   const x = Math.round(p.x);
   const y = Math.round(p.y);
-  const pixelSize = 2.2;
+  const pixelSize = 2.6;
   const styleId = p.styleId || "striker";
   const palette = PLAYER_STYLE_PALETTES[styleId] || PLAYER_PALETTE;
   const styleSprites = PLAYER_STYLE_SPRITES[styleId] || PLAYER_SPRITE;
@@ -3443,9 +3315,10 @@ function drawPlayer(p) {
   const bob = p.onGround ? Math.sin((p.walkAnim || 0) * 0.9) * bobAmp : 0;
   const attackKick = p.attackSwing > 0 ? (p.facing * (p.attackSwing / 160) * 2.5) : 0;
   const drawX = x + attackKick;
-  const drawY = y + bob;
+  const spriteVisualHeight = 16 * pixelSize;
+  const drawY = y + (p.h - spriteVisualHeight) + bob;
 
-  drawGroundShadow(x + p.w * 0.5, y + p.h + 6, 26, p.onGround ? 0.25 : 0.14);
+  drawGroundShadow(x + p.w * 0.5, y + p.h + 3, 26, p.onGround ? 0.25 : 0.14);
   
   // 대시 효과
   if (p.dashTimer > 0) {
@@ -3490,7 +3363,7 @@ function drawPlayer(p) {
   if (p.attackSwing > 0) {
     const t = p.attackSwing / 160;
     const sx = p.facing > 0 ? x + p.w + 4 : x - 10;
-    const sy = y + 21 - (1 - t) * (styleId === "phantom" ? 5 : 3);
+    const sy = drawY + 24 - (1 - t) * (styleId === "phantom" ? 5 : 3);
     drawKeyboardSwingFx(p, sx, sy, styleId);
   }
 
@@ -3858,59 +3731,33 @@ function drawHudBars() {
     ctx.font = "bold 13px monospace";
     ctx.fillText(`COMBO x${state.comboHits} (${Math.round(comboMultiplier() * 100)}%)`, WIDTH - 212, HEIGHT - 42);
   }
+  if (infoPanelsVisible) {
+    const weaponLine = p.weapon ? `${p.weapon.name} (${p.weapon.tier}) / ${p.weapon.affix.label}` : "없음";
+    const panelW = 410;
+    const panelH = 92;
+    const panelX = WIDTH - panelW - 18;
+    const panelY = HEIGHT - panelH - 74;
+    drawPixelRect(panelX, panelY, panelW, panelH, ui.panel);
+    drawPixelRect(panelX + 2, panelY + 2, panelW - 4, panelH - 4, ui.panelSoft);
+    ctx.fillStyle = ui.accentSoft;
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(`상태 요약 · Build ${APP_VERSION}`, panelX + 12, panelY + 20);
+    ctx.font = "11px monospace";
+    ctx.fillText(`층 ${floorLabel(floor.n)}  HP ${Math.ceil(p.hp)}/${p.maxHp}  LV ${p.level}  XP ${p.xp}/${p.needXp}`, panelX + 12, panelY + 38);
+    ctx.fillText(`스타일 ${p.styleName || "미지정"}  Death ${state.runDeathCount}  BestCombo ${state.comboBest}`, panelX + 12, panelY + 54);
+    ctx.fillText(`무기 ${weaponLine}`, panelX + 12, panelY + 70);
+    ctx.fillText(`H: 조작법/로그/상태 숨기기`, panelX + 12, panelY + 86);
+  }
   drawBossTopBars();
 }
 
 function withAlpha(hex, alpha) {
-  if (typeof hex !== "string") return `rgba(255,255,255,${alpha.toFixed(2)})`;
-  if (hex.startsWith("rgba(")) {
-    const m = hex.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)/);
-    if (m) return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${alpha.toFixed(2)})`;
-  }
-  if (hex.startsWith("rgb(")) {
-    const m = hex.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (m) return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${alpha.toFixed(2)})`;
-  }
-  const c = hex.replace("#", "");
-  if (c.length !== 6) return hex;
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
+  return RenderSystem.withAlpha(hex, alpha);
 }
 
 function renderStats() {
-  const p = state.player;
-  const floor = state.floor.info;
-  const runTime = formatDuration(state.runElapsedMs);
-  const weaponLine = p.weapon ? `${p.weapon.name} (${p.weapon.tier}) / ${p.weapon.affix.label}` : "없음";
-  const weaponFx = p.weapon ? `${p.weapon.feature} + ${p.weapon.affix.feature}` : "-";
-  const itemLines = Object.entries(state.meta.items)
-    .map(([k, v]) => `${itemCatalog[k].label} x${v}`)
-    .join("<br>");
-
-  statsEl.innerHTML = `
-    <h2>상태</h2>
-    <p>콜사인: <strong>${p.codename}</strong></p>
-    <p>전투 스타일: <strong>${p.styleName || "미지정"}</strong></p>
-    <p><strong>${floorLabel(floor.n)}</strong> - ${floor.name}</p>
-    <p>HP: ${Math.ceil(p.hp)} / ${p.maxHp}</p>
-    <p>LV.${p.level} | XP: ${p.xp}/${p.needXp}</p>
-    <p>ATK: ${Math.round(p.baseDamage * p.damageMul)} | SPD: ${(p.baseSpeed * p.speedMul).toFixed(1)}</p>
-    <p>Time Attack: ${runTime} | Death: ${state.runDeathCount}</p>
-    <p>Combo Best: ${state.comboBest} | FX: ${state.reducedFx ? "간소화" : "전체"}</p>
-    <p>Run Assist: ${p.assistActive ? "ON" : "OFF"} | Recent Deaths: ${state.meta.recentDeaths || 0}</p>
-    <p>Build: ${APP_VERSION}</p>
-    <p>Gold: ${p.gold}G</p>
-    <p>Weapon: ${weaponLine}</p>
-    <p>Weapon FX: ${weaponFx}</p>
-    <p>Skill: ${p.skillNames.length ? p.skillNames.join(", ") : "없음"}</p>
-    <h2>Items</h2>
-    <p>${itemLines}</p>
-    <h2>Records</h2>
-    <p>Best Time: ${state.meta.bestTimeMs ? formatDuration(state.meta.bestTimeMs) : "-"}</p>
-    <p>Total Clears: ${state.meta.totalClears || 0} | Best Combo: ${state.meta.bestCombo || 0}</p>
-  `;
+  // 상태 정보는 캔버스 HUD(drawHudBars)에서 렌더링한다.
+  statsEl.innerHTML = "";
 }
 
 // ============================================
@@ -3970,6 +3817,12 @@ window.addEventListener("keydown", (e) => {
   }
   state.keys[k] = true;
   state.keys[lk] = true;
+
+  if (lk === "h") {
+    infoPanelsVisible = !infoPanelsVisible;
+    applyInfoPanelsVisibility();
+    return;
+  }
 
   if (state.mode === "shop") {
     if (k === "1") buyFromShop(0);
@@ -4043,4 +3896,5 @@ window.addEventListener("blur", () => {
 // ============================================
 registerServiceWorker();
 startRun();
+applyInfoPanelsVisibility();
 requestAnimationFrame(loop);

@@ -16,6 +16,7 @@ namespace RescapeR.UI
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.OnRunEnded += ShowResult;
+                GameManager.Instance.OnFloorChanged += HandleFloorChanged;
             }
         }
 
@@ -24,6 +25,7 @@ namespace RescapeR.UI
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.OnRunEnded -= ShowResult;
+                GameManager.Instance.OnFloorChanged -= HandleFloorChanged;
             }
         }
 
@@ -55,6 +57,14 @@ namespace RescapeR.UI
             if (deathCountText != null)
             {
                 deathCountText.text = $"사망 횟수: {deathCount}";
+            }
+        }
+
+        private void HandleFloorChanged(Data.FloorId _)
+        {
+            if (panelRoot != null)
+            {
+                panelRoot.SetActive(false);
             }
         }
     }

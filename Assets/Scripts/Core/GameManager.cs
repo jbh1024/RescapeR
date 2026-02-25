@@ -18,7 +18,10 @@ namespace RescapeR.Core
 
         [Header("Runtime")]
         [SerializeField] private GameFlowState flowState = GameFlowState.Boot;
+        [SerializeField] private bool autoRestartAfterResult = true;
+        [SerializeField] private float autoRestartDelaySeconds = 3f;
         [SerializeField] private float runStartTime;
+        [SerializeField] private float resultShownAt = -1f;
         [SerializeField] private GameSaveData saveData;
         [SerializeField] private int lastSavedRunSeconds;
 
@@ -51,6 +54,19 @@ namespace RescapeR.Core
             StartRunFromSave();
         }
 
+        private void Update()
+        {
+            if (!autoRestartAfterResult || flowState != GameFlowState.Result || resultShownAt < 0f)
+            {
+                return;
+            }
+
+            if (Time.realtimeSinceStartup >= resultShownAt + Mathf.Max(0f, autoRestartDelaySeconds))
+            {
+                StartNewRun();
+            }
+        }
+
         public void StartNewRun()
         {
             saveData.player.currentFloor = FloorId.B6;
@@ -59,6 +75,7 @@ namespace RescapeR.Core
             saveData.player.inventory.Clear();
             runStartTime = Time.realtimeSinceStartup;
             lastSavedRunSeconds = 0;
+            resultShownAt = -1f;
             flowState = GameFlowState.Playing;
             SaveGame();
             OnFloorChanged?.Invoke(saveData.player.currentFloor);
@@ -152,7 +169,7 @@ namespace RescapeR.Core
             var totalSeconds = TotalRunSeconds;
             var grade = ResultGradeCalculator.Evaluate(totalSeconds);
             OnRunEnded?.Invoke(grade, totalSeconds, saveData.meta.deathCount);
-            StartNewRun();
+            resultShownAt = Time.realtimeSinceStartup;
         }
 
         private void LoadOrCreateSave()
@@ -178,6 +195,7 @@ namespace RescapeR.Core
             flowState = GameFlowState.Playing;
             runStartTime = Time.realtimeSinceStartup;
             lastSavedRunSeconds = 0;
+            resultShownAt = -1f;
             OnFloorChanged?.Invoke(saveData.player.currentFloor);
         }
     }

@@ -1,9 +1,15 @@
-const CACHE_NAME = "rescaper-cache-v1.0.0-prod";
+const CACHE_NAME = "rescaper-cache-v1.0.3-prod";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./game.js",
+  "./systems/save-system.js",
+  "./systems/combat-system.js",
+  "./systems/ui-system.js",
+  "./systems/render-system.js",
+  "./systems/monster-archetype-system.js",
+  "./systems/floor-system.js",
   "./manifest.webmanifest",
   "./icon.svg",
 ];
