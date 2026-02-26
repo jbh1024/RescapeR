@@ -129,6 +129,34 @@ canvas {
   white-space: pre-line;
 }
 
+.overlay.fail {
+  color: #ffd7d7;
+}
+
+.overlay.fail .overlay-fail-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.overlay.fail .overlay-title {
+  font-size: 2.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-shadow: 0 4px 18px rgba(255, 70, 70, 0.45);
+  margin-bottom: 14px;
+}
+
+.overlay.fail .overlay-sub {
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: pre-line;
+  color: rgba(255, 226, 226, 0.95);
+}
+
 .hidden {
   display: none;
 }

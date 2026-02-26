@@ -13,7 +13,7 @@ const GROUND_Y = HEIGHT - 75;
 const WORLD_WIDTH = 3200;
 const ENABLE_RANGED_ATTACKS = false;
 const ENEMY_AOE_SCALE = 0.78;
-const APP_VERSION = "1.0.3-prod";
+const APP_VERSION = "1.0.7-gameplay2";
 const META_STORAGE_KEY = "rescaperMeta";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const SETTINGS_STORAGE_KEY = "rescaperSettings";
@@ -30,7 +30,130 @@ if (!SaveSystem || !CombatSystem || !UiSystem || !RenderSystem || !MonsterArchet
   throw new Error("RescapeR system scripts are missing.");
 }
 
+const ART_ASSET_PATHS = {
+  player: {
+    stand: "assets/sprites/player/wishforge_player_idle.png",
+    jump: "assets/sprites/player/wishforge_player_jump.png",
+    hurt: "assets/sprites/player/wishforge_player_fall.png",
+  },
+  monsters: {
+    dark_guard: "assets/sprites/monsters/wishforge_enemy_dark_guard.png",
+    necromancer: "assets/sprites/monsters/wishforge_enemy_necromancer.png",
+    goblin: "assets/sprites/monsters/wishforge_enemy_goblin.png",
+    goblin_hog: "assets/sprites/monsters/wishforge_enemy_goblin_hog.png",
+    bat: "assets/sprites/monsters/wishforge_enemy_bat.png",
+    frog: "assets/sprites/monsters/wishforge_enemy_frog.png",
+    snail: "assets/sprites/monsters/wishforge_enemy_snail.png",
+    skull_slime: "assets/sprites/monsters/wishforge_enemy_skull_slime.png",
+    golem: "assets/sprites/monsters/wishforge_enemy_golem.png",
+    mushroom: "assets/sprites/monsters/wishforge_enemy_mushroom.png",
+  },
+  tiles: {
+    stoneMid: "assets/sprites/tiles/wishforge_tile_01.png",
+    grassMid: "assets/sprites/tiles/wishforge_tile_14.png",
+    brickWall: "assets/sprites/tiles/wishforge_cave_under_tile.png",
+  },
+  ui: {
+    lives: "assets/sprites/ui/wishforge_ui_lives.png",
+    boss: "assets/sprites/ui/wishforge_ui_boss_icon.png",
+    popupBg: "assets/sprites/ui/wishforge_ui_popup_bg.png",
+  },
+  backgrounds: {
+    mergedDark: "assets/sprites/backgrounds/wishforge_bg_merged_dark.png",
+    sky: "assets/sprites/backgrounds/wishforge_bg_sky.png",
+    mountains: "assets/sprites/backgrounds/wishforge_bg_mountains.png",
+    trees01: "assets/sprites/backgrounds/wishforge_bg_trees_01.png",
+    trees02: "assets/sprites/backgrounds/wishforge_bg_trees_02.png",
+  },
+};
+
+const ART_FRAME_SPECS = {
+  player: {
+    stand: { x: 0, y: 0, w: 24, h: 24 },
+    jump: { x: 24, y: 0, w: 24, h: 24 },
+    hurt: { x: 0, y: 0, w: 24, h: 24 },
+  },
+  monsters: {
+    dark_guard: { w: 39, h: 49 },
+    necromancer: { w: 32, h: 32 },
+    goblin: { w: 32, h: 32 },
+    goblin_hog: { w: 32, h: 32 },
+    bat: { w: 32, h: 32 },
+    frog: { w: 24, h: 24 },
+    snail: { w: 24, h: 24 },
+    skull_slime: { w: 32, h: 24 },
+    golem: { w: 48, h: 48 },
+    mushroom: { w: 24, h: 24 },
+  },
+  ui: {
+    lives: { w: 11, h: 11 },
+  },
+};
+
+function loadImageAsset(src) {
+  const img = new Image();
+  img.decoding = "async";
+  img.src = src;
+  return img;
+}
+
+function loadArtAssets(tree) {
+  const out = {};
+  for (const [key, value] of Object.entries(tree)) {
+    out[key] = typeof value === "string" ? loadImageAsset(value) : loadArtAssets(value);
+  }
+  return out;
+}
+
+const ART_ASSETS = loadArtAssets(ART_ASSET_PATHS);
+
 let infoPanelsVisible = false;
+
+function ensureRankingMeta(meta) {
+  if (!meta.ranking || typeof meta.ranking !== "object") {
+    meta.ranking = { totalClears: 0, bestClearTimeMs: 0, lastClearTimeMs: 0 };
+  } else {
+    meta.ranking.totalClears = Math.max(0, meta.ranking.totalClears || 0);
+    meta.ranking.bestClearTimeMs = Math.max(0, meta.ranking.bestClearTimeMs || 0);
+    meta.ranking.lastClearTimeMs = Math.max(0, meta.ranking.lastClearTimeMs || 0);
+  }
+  if (!Array.isArray(meta.clearRecords)) {
+    meta.clearRecords = [];
+  }
+  meta.clearRecords = meta.clearRecords
+    .filter((r) => r && typeof r === "object")
+    .map((r) => ({
+      clearCount: Math.max(0, r.clearCount || 0),
+      clearTimeMs: Math.max(0, r.clearTimeMs || 0),
+      deathCount: Math.max(0, r.deathCount || 0),
+      at: typeof r.at === "number" ? r.at : Date.now(),
+    }));
+  meta.ranking.totalClears = Math.max(meta.ranking.totalClears, meta.totalClears || 0);
+  if (!meta.ranking.bestClearTimeMs || ((meta.bestTimeMs || 0) > 0 && meta.bestTimeMs < meta.ranking.bestClearTimeMs)) {
+    meta.ranking.bestClearTimeMs = meta.bestTimeMs || meta.ranking.bestClearTimeMs;
+  }
+}
+
+function rankingRecordCompare(a, b) {
+  if ((a.clearCount || 0) !== (b.clearCount || 0)) return (b.clearCount || 0) - (a.clearCount || 0);
+  if ((a.clearTimeMs || 0) !== (b.clearTimeMs || 0)) return (a.clearTimeMs || 0) - (b.clearTimeMs || 0);
+  return (a.at || 0) - (b.at || 0);
+}
+
+function getSortedRankingRecords(limit = 5) {
+  ensureRankingMeta(state.meta);
+  return [...state.meta.clearRecords]
+    .sort(rankingRecordCompare)
+    .slice(0, Math.max(1, limit));
+}
+
+function buildRankingLines(limit = 5) {
+  const rows = getSortedRankingRecords(limit);
+  if (!rows.length) return ["기록 없음"];
+  return rows.map((r, idx) =>
+    `${idx + 1}. ${r.clearCount}회 / ${formatDuration(r.clearTimeMs)} / 데스 ${r.deathCount}`
+  );
+}
 
 // ============================================
 // 상수 및 설정
@@ -74,13 +197,144 @@ const ELEVATOR_QUOTES = [
   "눈을 마주치지 않으려 모두 바닥만 본다.",
 ];
 
-const skillPool = [
-  { id: "power", label: "강공", desc: "공격력 +20%", apply: (p) => (p.damageMul += 0.2) },
-  { id: "vital", label: "강인함", desc: "HP +20", apply: (p) => { p.maxHp += 20; p.hp += 20; } },
-  { id: "swift", label: "민첩", desc: "이동속도 +12%", apply: (p) => (p.speedMul += 0.12) },
-  { id: "blade", label: "연속베기", desc: "공격 쿨타임 -15%", apply: (p) => (p.attackCdMul *= 0.85) },
-  { id: "dash", label: "가속대시", desc: "대시 쿨타임 -20%", apply: (p) => (p.dashCdMul *= 0.8) },
-  { id: "leech", label: "흡혈", desc: "처치시 HP +5", apply: (p) => (p.lifeStealOnKill += 5) },
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pctText(v) {
+  return `${Math.round(v * 100)}%`;
+}
+
+function inferSkillIdsFromNames(names) {
+  if (!Array.isArray(names)) return [];
+  const map = {
+    power: ["강공"],
+    vital: ["강인함"],
+    swift: ["민첩"],
+    blade: ["연속베기"],
+    dash: ["가속대시"],
+    leech: ["흡혈"],
+    crit: ["정밀사격"],
+    critdmg: ["치명강타"],
+    guard: ["강철몸"],
+    regen: ["회복호흡"],
+    reach: ["리치확장"],
+    execute: ["마무리"],
+  };
+  const found = [];
+  for (const [id, keys] of Object.entries(map)) {
+    if (names.some((n) => typeof n === "string" && keys.some((k) => n.includes(k)))) {
+      found.push(id);
+    }
+  }
+  return found;
+}
+
+const SKILL_TEMPLATES = [
+  {
+    id: "power",
+    label: "강공",
+    roll: () => {
+      const v = randInt(10, 26) / 100;
+      return { desc: `공격력 +${pctText(v)}`, tag: `강공+${pctText(v)}`, apply: (p) => { p.damageMul += v; } };
+    },
+  },
+  {
+    id: "vital",
+    label: "강인함",
+    roll: () => {
+      const v = randInt(12, 36);
+      return { desc: `HP +${v}`, tag: `강인함+${v}`, apply: (p) => { p.maxHp += v; p.hp += v; } };
+    },
+  },
+  {
+    id: "swift",
+    label: "민첩",
+    roll: () => {
+      const v = randInt(6, 18) / 100;
+      return { desc: `이동속도 +${pctText(v)}`, tag: `민첩+${pctText(v)}`, apply: (p) => { p.speedMul += v; } };
+    },
+  },
+  {
+    id: "blade",
+    label: "연속베기",
+    roll: () => {
+      const v = randInt(8, 24) / 100;
+      return { desc: `공격 쿨타임 -${pctText(v)}`, tag: `연속-${pctText(v)}`, apply: (p) => { p.attackCdMul *= (1 - v); } };
+    },
+  },
+  {
+    id: "dash",
+    label: "가속대시",
+    roll: () => {
+      const v = randInt(10, 26) / 100;
+      return { desc: `대시 쿨타임 -${pctText(v)}`, tag: `대시-${pctText(v)}`, apply: (p) => { p.dashCdMul *= (1 - v); } };
+    },
+  },
+  {
+    id: "leech",
+    label: "흡혈",
+    roll: () => {
+      const v = randInt(2, 8);
+      return { desc: `처치시 HP +${v}`, tag: `흡혈+${v}`, apply: (p) => { p.lifeStealOnKill += v; } };
+    },
+  },
+  {
+    id: "crit",
+    label: "정밀사격",
+    roll: () => {
+      const v = randInt(4, 14) / 100;
+      return { desc: `치명타 확률 +${pctText(v)}`, tag: `치확+${pctText(v)}`, apply: (p) => { p.critChance += v; } };
+    },
+  },
+  {
+    id: "critdmg",
+    label: "치명강타",
+    roll: () => {
+      const v = randInt(12, 35) / 100;
+      return { desc: `치명타 피해 +${pctText(v)}`, tag: `치피+${pctText(v)}`, apply: (p) => { p.critDamageMul += v; } };
+    },
+  },
+  {
+    id: "guard",
+    label: "강철몸",
+    roll: () => {
+      const v = randInt(5, 16) / 100;
+      return { desc: `받는 피해 -${pctText(v)}`, tag: `방어-${pctText(v)}`, apply: (p) => { p.damageTakenMul *= (1 - v); } };
+    },
+  },
+  {
+    id: "regen",
+    label: "회복호흡",
+    roll: () => {
+      const v = randInt(1, 4);
+      return { desc: `초당 HP +${v} 재생`, tag: `재생+${v}`, apply: (p) => { p.regenPerSec += v; } };
+    },
+  },
+  {
+    id: "reach",
+    label: "리치확장",
+    roll: () => {
+      const v = randInt(4, 14);
+      return { desc: `근접 사거리 +${v}`, tag: `사거리+${v}`, apply: (p) => { p.skillReachBonus += v; } };
+    },
+  },
+  {
+    id: "execute",
+    label: "마무리",
+    roll: () => {
+      const threshold = randInt(20, 35) / 100;
+      const mul = randInt(12, 35) / 100;
+      return {
+        desc: `적 HP ${pctText(threshold)} 이하 공격 시 피해 +${pctText(mul)}`,
+        tag: `마무리+${pctText(mul)}`,
+        apply: (p) => {
+          p.executeThreshold = Math.max(p.executeThreshold, threshold);
+          p.executeDamageMul += mul;
+        },
+      };
+    },
+  },
 ];
 
 const itemCatalog = {
@@ -111,6 +365,84 @@ const SHOP_OPTIONS = [
   { id: "reroll", key: "2", label: "키보드 재보급", cost: 120, desc: "무기/어픽스 랜덤 재지급" },
   { id: "artifact", key: "3", label: "영구 업그레이드", cost: 180, desc: "영구 아이템 1개 랜덤 획득" },
 ];
+
+const ENEMY_MUTATORS = {
+  berserk: {
+    label: "광폭",
+    color: "#ff9f7a",
+    apply: (e) => {
+      e.speed *= 1.24;
+      e.damage = Math.round(e.damage * 1.15);
+      e.hp = Math.round(e.hp * 0.92);
+      e.maxHp = Math.round(e.maxHp * 0.92);
+      e.xp = Math.round(e.xp * 1.18);
+      e.goldBonusMul = 1.12;
+    },
+  },
+  fortress: {
+    label: "요새",
+    color: "#9bd6ff",
+    apply: (e) => {
+      e.speed *= 0.85;
+      e.damage = Math.round(e.damage * 1.05);
+      e.hp = Math.round(e.hp * 1.45);
+      e.maxHp = Math.round(e.maxHp * 1.45);
+      e.xp = Math.round(e.xp * 1.28);
+      e.goldBonusMul = 1.18;
+    },
+  },
+  blink: {
+    label: "질주",
+    color: "#c7b4ff",
+    apply: (e) => {
+      e.speed *= 1.38;
+      e.damage = Math.round(e.damage * 1.08);
+      e.hp = Math.round(e.hp * 0.86);
+      e.maxHp = Math.round(e.maxHp * 0.86);
+      e.xp = Math.round(e.xp * 1.22);
+      e.goldBonusMul = 1.16;
+    },
+  },
+};
+
+const SPECIAL_EVENT_ROOM_BY_ZONE = {
+  parking: [
+    { id: "overclock_charge", label: "비상 발전실", hint: "오버클럭 충전", color: "#87d9ff" },
+    { id: "payroll_cache", label: "현금 정산기", hint: "야근수당 인출", color: "#ffe08a" },
+  ],
+  lobby: [
+    { id: "armor_patch", label: "보안 프로토콜", hint: "피해 완화", color: "#b8e3ff" },
+    { id: "payroll_cache", label: "경비 예산 금고", hint: "야근수당 인출", color: "#ffe08a" },
+  ],
+  showroom: [
+    { id: "skill_cache", label: "데모 스테이지", hint: "전투 경험치", color: "#9dffe8" },
+    { id: "overclock_charge", label: "조명 제어실", hint: "오버클럭 충전", color: "#8ff7ff" },
+  ],
+  mobile: [
+    { id: "risk_trade", label: "가챠 단말기", hint: "위험-보상 거래", color: "#e6b8ff" },
+    { id: "skill_cache", label: "AB 테스트 랩", hint: "전투 경험치", color: "#d5c2ff" },
+  ],
+  server: [
+    { id: "weapon_tune", label: "서버 튜닝실", hint: "무기 가속", color: "#9dffc9" },
+    { id: "overclock_charge", label: "UPS 제어실", hint: "오버클럭 충전", color: "#a8ffd7" },
+  ],
+  glitch: [
+    { id: "recovery_pod", label: "핫픽스 스테이션", hint: "긴급 회복", color: "#ffb5b5" },
+    { id: "weapon_tune", label: "패치 컴파일러", hint: "무기 가속", color: "#ffcc9d" },
+  ],
+  marketing: [
+    { id: "gold_contract", label: "바이럴 계약실", hint: "골드 보너스", color: "#fff3a0" },
+    { id: "payroll_cache", label: "성과급 정산기", hint: "야근수당 인출", color: "#ffe08a" },
+  ],
+  support: [
+    { id: "recovery_pod", label: "상담 회복실", hint: "긴급 회복", color: "#ffd8b0" },
+    { id: "armor_patch", label: "매뉴얼 보정실", hint: "피해 완화", color: "#ffd0bf" },
+  ],
+  executive: [
+    { id: "artifact_vault", label: "비밀 결재함", hint: "아티팩트 지급", color: "#f1c8ff" },
+    { id: "gold_contract", label: "특별 인센티브실", hint: "골드 보너스", color: "#e7b3ff" },
+  ],
+};
 
 const PLAYER_CALLSIGN = {
   parking: "지하 탈출러",
@@ -312,6 +644,7 @@ const state = {
   runDeathCount: 0,
   endingReached: false,
   result: null,
+  clearChoice: null,
   elevatorQuote: "",
   shopOptions: SHOP_OPTIONS,
   player: null,
@@ -331,14 +664,23 @@ const state = {
   comboHits: 0,
   comboTimer: 0,
   comboBest: 0,
+  battleHeat: 0,
+  overdriveTier: 0,
+  overdriveTimer: 0,
+  floorKillCount: 0,
+  weaponPassivePulse: 0,
+  weaponPassiveHint: "",
   meta: loadMeta(),
 };
 
 function loadMeta() {
-  return SaveSystem.loadMeta(localStorage, META_STORAGE_KEY);
+  const meta = SaveSystem.loadMeta(localStorage, META_STORAGE_KEY);
+  ensureRankingMeta(meta);
+  return meta;
 }
 
 function saveMeta() {
+  ensureRankingMeta(state.meta);
   SaveSystem.saveMeta(localStorage, META_STORAGE_KEY, state.meta);
 }
 
@@ -501,7 +843,15 @@ function basePlayer() {
     codename: "퇴근 집행자",
     weapon: null,
     skillNames: [],
+    skillIds: [],
     lifeStealOnKill: 0,
+    critChance: 0,
+    critDamageMul: 1.5,
+    damageTakenMul: 1,
+    regenPerSec: 0,
+    skillReachBonus: 0,
+    executeThreshold: 0,
+    executeDamageMul: 0,
     walkAnim: 0,
     attackSwing: 0,
     lastAttackRange: null,
@@ -529,7 +879,6 @@ function restorePlayerFromSave(saved) {
   const p = basePlayer();
   if (!saved) return p;
   p.maxHp = saved.maxHpBase || saved.maxHp || p.maxHp;
-  p.hp = Math.min(p.maxHp, Math.max(1, saved.hp || p.hp));
   p.gold = typeof saved.gold === "number" ? saved.gold : p.gold;
   p.inventory = Array.isArray(saved.inventory) && saved.inventory.length
     ? saved.inventory.slice(0, 2)
@@ -542,10 +891,19 @@ function restorePlayerFromSave(saved) {
   p.lifeStealOnKill = saved.lifeStealOnKill || p.lifeStealOnKill;
   p.dashCdMul = saved.dashCdMul || p.dashCdMul;
   p.skillNames = Array.isArray(saved.skillNames) ? [...saved.skillNames] : p.skillNames;
+  p.skillIds = Array.isArray(saved.skillIds) ? [...saved.skillIds] : inferSkillIdsFromNames(p.skillNames);
   p.damageMul = saved.damageMul || p.damageMul;
   p.attackCdMul = saved.attackCdMul || p.attackCdMul;
+  p.critChance = saved.critChance || p.critChance;
+  p.critDamageMul = saved.critDamageMul || p.critDamageMul;
+  p.damageTakenMul = saved.damageTakenMul || p.damageTakenMul;
+  p.regenPerSec = saved.regenPerSec || p.regenPerSec;
+  p.skillReachBonus = saved.skillReachBonus || p.skillReachBonus;
+  p.executeThreshold = saved.executeThreshold || p.executeThreshold;
+  p.executeDamageMul = saved.executeDamageMul || p.executeDamageMul;
   applyCombatStyle(p, saved.styleId || randomCombatStyleId());
   applyWeaponToPlayer(p, saved.weapon || rollWeapon());
+  p.hp = Math.min(p.maxHp, Math.max(1, saved.hp || p.hp));
   return p;
 }
 
@@ -596,13 +954,66 @@ function makeFloor(index) {
   });
   return {
     ...floor,
+    eventRoom: rollSpecialEventRoom(info, index, rand),
+    eventGoldMul: 1,
     theme: themeByFloor(info.n),
   };
+}
+
+function applyEnemyMutatorsForFloor(index) {
+  const rand = seededRandom(state.rngSeed + index * 2137 + state.player.level * 59);
+  const pool = Object.keys(ENEMY_MUTATORS);
+  const chance = Math.min(0.45, 0.22 + index * 0.015);
+  let applied = 0;
+  for (const e of state.floor.enemies) {
+    if (e.type !== "mob") continue;
+    if (rand() > chance) continue;
+    const id = pool[Math.floor(rand() * pool.length)];
+    const mut = ENEMY_MUTATORS[id];
+    if (!mut) continue;
+    e.mutatorId = id;
+    e.mutatorLabel = mut.label;
+    mut.apply(e);
+    applied += 1;
+  }
+  if (applied > 0) {
+    const sample = state.floor.enemies
+      .filter((e) => e.type === "mob" && e.mutatorLabel)
+      .slice(0, 3)
+      .map((e) => `${e.name}(${e.mutatorLabel})`);
+    log(`층 변이 감지: ${sample.join(", ")}${applied > 3 ? " ..." : ""}`);
+  }
 }
 
 function randomItemKey(rand) {
   const keys = Object.keys(itemCatalog);
   return keys[Math.floor(rand() * keys.length)];
+}
+
+function rollSpecialEventRoom(info, index, rand) {
+  if (!info || info.safeZone) return null;
+  const chance = Math.min(0.72, 0.32 + index * 0.025);
+  if (rand() > chance) return null;
+  const pool = SPECIAL_EVENT_ROOM_BY_ZONE[info.zone] || SPECIAL_EVENT_ROOM_BY_ZONE.parking;
+  if (!pool || pool.length === 0) return null;
+  const pick = pool[Math.floor(rand() * pool.length)];
+  return {
+    id: pick.id,
+    label: pick.label,
+    hint: pick.hint,
+    color: pick.color,
+    used: false,
+    x: 460 + rand() * (WORLD_WIDTH - 1080),
+    y: GROUND_Y - 94,
+    w: 68,
+    h: 94,
+  };
+}
+
+function triggerWeaponPassiveHint(text) {
+  if (!text) return;
+  state.weaponPassiveHint = text;
+  state.weaponPassivePulse = 920;
 }
 
 function startRun() {
@@ -633,10 +1044,17 @@ function startRun() {
   state.running = true;
   state.choosingSkill = false;
   state.pendingLevelUps = 0;
+  state.battleHeat = 0;
+  state.overdriveTier = 0;
+  state.overdriveTimer = 0;
+  state.floorKillCount = 0;
+  state.weaponPassivePulse = 0;
+  state.weaponPassiveHint = "";
   state.runElapsedMs = 0;
   state.runStartTs = performance.now();
   state.endingReached = false;
   state.result = null;
+  state.clearChoice = null;
   state.screenFx = [];
   state.damageTexts = [];
   state.projectiles = [];
@@ -662,6 +1080,8 @@ function startRun() {
 function enterFloor(index, first = false) {
   state.floorIndex = index;
   state.floor = makeFloor(index);
+  applyEnemyMutatorsForFloor(index);
+  state.floorKillCount = 0;
   state.player.codename = floorProfile(state.floor.info).playerName;
   state.player.x = 80;
   state.player.y = GROUND_Y - state.player.h;
@@ -679,6 +1099,8 @@ function enterFloor(index, first = false) {
   state.ceoCutinText = "";
   state.comboHits = 0;
   state.comboTimer = 0;
+  state.weaponPassivePulse = 0;
+  state.weaponPassiveHint = "";
   state.cameraX = 0;
   state.elevatorQuote = ELEVATOR_QUOTES[Math.floor(Math.random() * ELEVATOR_QUOTES.length)];
   state.message = `${state.floor.info.name}\n${state.elevatorQuote}`;
@@ -686,6 +1108,9 @@ function enterFloor(index, first = false) {
   if (!first) log(`${state.floor.info.name} 도착 · "${state.elevatorQuote}"`);
   if (state.floor.info.safeZone) {
     log("B1 보급소: 안전 구역입니다. 잠시 정비하고 올라가세요.");
+  }
+  if (state.floor.eventRoom && !state.floor.eventRoom.used) {
+    log(`특수 이벤트 룸 발견: ${state.floor.eventRoom.label} (E로 활성화)`);
   }
   const mobPreview = [...new Set(state.floor.enemies.filter((e) => e.type === "mob").map((e) => e.name))].slice(0, 3);
   if (mobPreview.length) {
@@ -708,36 +1133,137 @@ function nextFloor() {
   enterFloor(state.floorIndex + 1);
 }
 
+function easterEggMoveFloor(delta) {
+  if (state.mode === "dead" || state.mode === "clearChoice") return;
+  const target = Math.max(0, Math.min(FLOOR_PLAN.length - 1, state.floorIndex + delta));
+  if (target === state.floorIndex) return;
+  state.mode = "playing";
+  state.running = true;
+  state.choosingSkill = false;
+  hideOverlay();
+  enterFloor(target);
+  log(`이스터에그 이동: ${floorLabel(FLOOR_PLAN[target].n)} ${FLOOR_PLAN[target].name}`);
+}
+
 function reachEndingFloor() {
   state.endingReached = true;
   winGame();
 }
 
+function buildCarryOverSnapshot(player, floorIndex = 0) {
+  return {
+    player: {
+      currentFloor: floorLabel(FLOOR_PLAN[floorIndex]?.n ?? -6),
+      floorIndex,
+      hp: Math.max(1, Math.round(player.hp)),
+      gold: player.gold,
+      inventory: [...player.inventory],
+      codename: player.codename,
+      level: player.level,
+      xp: player.xp,
+      needXp: player.needXp,
+      skillNames: [...player.skillNames],
+      skillIds: [...(player.skillIds || [])],
+      weapon: player.weapon,
+      styleId: player.styleId || "striker",
+      damageMul: player.damageMul / ((player.weaponDamageMul || 1) * (player.styleDamageMul || 1)),
+      speedMul: player.speedMul / (player.styleSpeedMul || 1),
+      maxHp: player.maxHp,
+      maxHpBase: player.maxHp - (player.styleHpBonus || 0),
+      lifeStealOnKill: player.lifeStealOnKill,
+      attackCdMul: player.attackCdMul / ((player.weaponAttackCdMul || 1) * (player.styleAttackCdMul || 1)),
+      dashCdMul: player.dashCdMul / (player.styleDashCdMul || 1),
+      critChance: player.critChance || 0,
+      critDamageMul: player.critDamageMul || 1.5,
+      damageTakenMul: player.damageTakenMul || 1,
+      regenPerSec: player.regenPerSec || 0,
+      skillReachBonus: player.skillReachBonus || 0,
+      executeThreshold: player.executeThreshold || 0,
+      executeDamageMul: player.executeDamageMul || 0,
+    },
+    meta: {
+      totalPlayTime: Math.round(state.meta.totalPlayTime),
+      deathCount: 0,
+      unlockedItems: [...state.meta.unlockedItems],
+    },
+  };
+}
+
+function saveCarryOverRunSnapshot() {
+  const payload = buildCarryOverSnapshot(state.player, 0);
+  localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(payload));
+}
+
 function winGame() {
   state.running = false;
-  state.mode = "result";
+  state.mode = "clearChoice";
   const totalTime = state.runElapsedMs;
   const grade = gradeByTime(totalTime);
   state.result = { totalTime, deathCount: state.runDeathCount, grade };
+  ensureRankingMeta(state.meta);
   state.meta.totalClears = Math.max(0, state.meta.totalClears || 0) + 1;
+  state.meta.ranking.totalClears = state.meta.totalClears;
+  state.meta.ranking.lastClearTimeMs = totalTime;
+  if (!state.meta.ranking.bestClearTimeMs || totalTime < state.meta.ranking.bestClearTimeMs) {
+    state.meta.ranking.bestClearTimeMs = totalTime;
+  }
   state.meta.bestCombo = Math.max(state.meta.bestCombo || 0, state.comboBest || 0);
   if (!state.meta.bestTimeMs || totalTime < state.meta.bestTimeMs) {
     state.meta.bestTimeMs = totalTime;
   }
+  state.meta.clearRecords.push({
+    clearCount: state.meta.totalClears,
+    clearTimeMs: totalTime,
+    deathCount: state.runDeathCount,
+    at: Date.now(),
+  });
+  if (state.meta.clearRecords.length > 30) {
+    state.meta.clearRecords = state.meta.clearRecords.slice(-30);
+  }
+  const sorted = [...state.meta.clearRecords].sort(rankingRecordCompare);
+  const currentRank = sorted.findIndex((r) =>
+    r.at === state.meta.clearRecords[state.meta.clearRecords.length - 1].at
+    && r.clearCount === state.meta.totalClears
+    && r.clearTimeMs === totalTime
+  ) + 1;
   state.meta.recentDeaths = 0;
   state.meta.totalPlayTime += totalTime * 0.001;
   saveMeta();
+  state.clearChoice = {
+    totalClears: state.meta.ranking.totalClears,
+    bestClearTimeMs: state.meta.ranking.bestClearTimeMs,
+    lastClearTimeMs: state.meta.ranking.lastClearTimeMs,
+  };
+  const rankingLines = buildRankingLines(5);
   showOverlay(
-    "10F 옥상 도착\n\n" +
-    `Total Time: ${formatDuration(totalTime)}\n` +
-    `Death Count: ${state.runDeathCount}\n` +
-    `Grade: ${grade}\n\n` +
-    `Best Time: ${state.meta.bestTimeMs ? formatDuration(state.meta.bestTimeMs) : "-"}\n` +
-    `Best Combo: ${state.meta.bestCombo || 0}\n\n` +
-    "R 키를 누르면 B6로 재출근합니다."
+    "10F 옥상 도착 - 랭킹 기록 저장\n\n" +
+    `이번 클리어: ${formatDuration(totalTime)} / 사망 ${state.runDeathCount} / ${grade}\n` +
+    `총 클리어: ${state.meta.ranking.totalClears}회\n` +
+    `최고 클리어타임: ${state.meta.ranking.bestClearTimeMs ? formatDuration(state.meta.ranking.bestClearTimeMs) : "-"}\n` +
+    `이번 기록 랭크: #${currentRank || "-"}\n\n` +
+    "[랭킹 TOP 5]\n" +
+    `${rankingLines.join("\n")}\n\n` +
+    "랭킹 기준: 총 클리어 수 우선, 동률이면 클리어타임 우선\n\n" +
+    "1: 캐릭터 상태 초기화 후 B6 재시작\n" +
+    "2: 현재 캐릭터 상태 유지 후 B6 재도전"
   );
   clearRunSnapshot();
   log(`게임 클리어: 결과 ${grade}, 소요 ${formatDuration(totalTime)}`);
+}
+
+function restartAfterClear(keepCharacterState) {
+  hideOverlay();
+  state.clearChoice = null;
+  state.result = null;
+  if (keepCharacterState) {
+    saveCarryOverRunSnapshot();
+    log("클리어 선택: 상태 유지 후 B6 재도전");
+    startRun();
+    return;
+  }
+  clearRunSnapshot();
+  log("클리어 선택: 상태 초기화 후 B6 재시작");
+  startRun();
 }
 
 function onDeath() {
@@ -748,7 +1274,11 @@ function onDeath() {
   state.meta.recentDeaths = (state.meta.recentDeaths || 0) + 1;
   saveMeta();
   saveRunSnapshot();
-  showOverlay("사망\n스킬과 레벨은 초기화됩니다. 아이템은 유지됩니다.\n연속 사망 시 자동 보조가 강화됩니다.\nR 키로 재시작");
+  showOverlay(
+    `<div class="overlay-fail-wrap"><div class="overlay-title">퇴근 실패!</div><div class="overlay-sub">스킬과 레벨은 초기화됩니다. 아이템은 유지됩니다.\n연속 사망 시 자동 보조가 강화됩니다.\nR 키로 재시작</div></div>`,
+    "fail",
+    true
+  );
   log("사망: 스킬이 초기화되고 아이템만 유지됩니다.");
 }
 
@@ -761,18 +1291,85 @@ function restartAfterDeath() {
   startRun();
 }
 
-function showOverlay(text) {
+function showOverlay(text, style = "", allowHtml = false) {
   overlayEl.classList.remove("hidden");
-  overlayEl.textContent = text;
+  overlayEl.classList.toggle("fail", style === "fail");
+  if (allowHtml) {
+    overlayEl.innerHTML = text;
+  } else {
+    overlayEl.textContent = text;
+  }
 }
 
 function hideOverlay() {
   overlayEl.classList.add("hidden");
+  overlayEl.classList.remove("fail");
   overlayEl.textContent = "";
 }
 
 function inShopZone() {
   return Boolean(state.floor.shop && intersects(state.player, state.floor.shop));
+}
+
+function inEventRoomZone() {
+  const room = state.floor?.eventRoom;
+  return Boolean(room && !room.used && intersects(state.player, room));
+}
+
+function tryUseEventRoom() {
+  if (state.mode !== "playing" || !state.running) return false;
+  const room = state.floor?.eventRoom;
+  if (!room || room.used || !intersects(state.player, room)) return false;
+  const p = state.player;
+  room.used = true;
+  const rewardX = Math.max(40, Math.min(WORLD_WIDTH - 64, room.x + room.w * 0.5 - 12));
+  let msg = `${room.label} 활성화`;
+  if (room.id === "recovery_pod") {
+    const heal = Math.max(24, Math.round(p.maxHp * 0.34));
+    p.hp = Math.min(p.maxHp, p.hp + heal);
+    msg = `${room.label}: HP +${heal}`;
+  } else if (room.id === "overclock_charge") {
+    addBattleHeat(38);
+    p.attackTimer = Math.max(0, p.attackTimer - 140);
+    msg = `${room.label}: 전투 열기 +38`;
+  } else if (room.id === "payroll_cache") {
+    const gold = randInt(52, 104);
+    p.gold += gold;
+    msg = `${room.label}: 야근수당 +${gold}G`;
+  } else if (room.id === "weapon_tune") {
+    p.attackCdMul = Math.max(0.55, p.attackCdMul * 0.92);
+    msg = `${room.label}: 공격 속도 강화`;
+  } else if (room.id === "skill_cache") {
+    const xp = Math.round(p.needXp * 0.58);
+    gainXp(xp);
+    msg = `${room.label}: 경험치 +${xp}`;
+  } else if (room.id === "gold_contract") {
+    state.floor.eventGoldMul = Math.max(1.18, state.floor.eventGoldMul || 1);
+    msg = `${room.label}: 층 보상 골드 +18%`;
+  } else if (room.id === "armor_patch") {
+    p.damageTakenMul *= 0.92;
+    msg = `${room.label}: 받는 피해 8% 감소`;
+  } else if (room.id === "artifact_vault") {
+    state.floor.pickups.push({
+      x: rewardX,
+      y: GROUND_Y - 28,
+      w: 24,
+      h: 24,
+      type: "artifact",
+      key: randomItemKey(() => Math.random()),
+    });
+    msg = `${room.label}: 아티팩트 박스 지급`;
+  } else if (room.id === "risk_trade") {
+    const hpCost = Math.max(10, Math.round(p.maxHp * 0.12));
+    p.hp = Math.max(1, p.hp - hpCost);
+    const gold = randInt(95, 180);
+    p.gold += gold;
+    msg = `${room.label}: HP -${hpCost}, 야근수당 +${gold}G`;
+  }
+  triggerWeaponPassiveHint(room.hint || "이벤트 발동");
+  log(`특수 이벤트: ${msg}`);
+  saveRunSnapshot();
+  return true;
 }
 
 function openShop() {
@@ -801,7 +1398,7 @@ function closeShop() {
 }
 
 function togglePause() {
-  if (state.mode === "dead" || state.mode === "result" || state.mode === "shop" || state.mode === "choosingSkill") return;
+  if (state.mode === "dead" || state.mode === "result" || state.mode === "clearChoice" || state.mode === "shop" || state.mode === "choosingSkill") return;
   if (state.mode === "paused") {
     state.mode = "playing";
     state.running = true;
@@ -865,7 +1462,7 @@ function spawnKeyboardProjectile(opts = {}) {
     returning: Boolean(opts.returning),
     canReturn: Boolean(opts.canReturn),
     life: opts.life || 900,
-    damage: opts.damage || Math.round(p.baseDamage * p.damageMul * 0.8),
+    damage: opts.damage || Math.round(p.baseDamage * currentPlayerDamageMul() * 0.8),
     hitSet: new Set(),
     color: opts.color || "#d7ebff",
   };
@@ -903,6 +1500,71 @@ function triggerCeoCutin(title, text) {
   playSfx("boss");
 }
 
+function resolveEnemyPhaseIndex(e) {
+  const ratio = e.hp / Math.max(1, e.maxHp);
+  if (ratio > 0.7) return 1;
+  if (ratio > 0.4) return 2;
+  return 3;
+}
+
+function onElitePhaseShift(e, phase) {
+  e.phaseIndex = phase;
+  if (e.type === "boss" && e.name.includes("CEO")) {
+    triggerCeoCutin(`대표이사 페이즈 ${phase}`, phase === 2 ? "임원진 긴급 결재 회의" : "최종 통보: 야근 확정");
+    addShake(5.6);
+    log(`대표이사 페이즈 전환: ${phase}`);
+    return;
+  }
+  if (e.type === "boss") {
+    state.bossIntroName = `${e.name} · PHASE ${phase}`;
+    state.bossIntroTimer = 980;
+    addShake(2.4 + phase * 0.9);
+    log(`${e.name}: 전투 페이즈 ${phase}`);
+    return;
+  }
+  log(`${e.name}: 전술 변경 (페이즈 ${phase})`);
+}
+
+function currentOverdriveDamageMul() {
+  if (state.overdriveTimer <= 0) return 1;
+  return state.overdriveTier >= 2 ? 1.22 : 1.12;
+}
+
+function currentOverdriveSpeedMul() {
+  if (state.overdriveTimer <= 0) return 1;
+  return state.overdriveTier >= 2 ? 1.16 : 1.08;
+}
+
+function currentOverdriveGoldMul() {
+  if (state.overdriveTimer <= 0) return 1;
+  return state.overdriveTier >= 2 ? 1.3 : 1.15;
+}
+
+function currentPlayerDamageMul() {
+  return state.player.damageMul * currentOverdriveDamageMul();
+}
+
+function activateOverdrive(tier) {
+  if (tier <= state.overdriveTier && state.overdriveTimer > 1000) {
+    state.overdriveTimer = Math.max(state.overdriveTimer, 5000);
+    return;
+  }
+  state.overdriveTier = tier;
+  state.overdriveTimer = 8000;
+  log(`오버드라이브 ${tier}단계 발동: 화력/기동/보상 증가`);
+  addScreenFx("slash", { strength: tier >= 2 ? 0.2 : 0.14 });
+  spawnParticles(state.player.x + state.player.w * 0.5, state.player.y + state.player.h * 0.5, 14, "#9de9ff", 2.8);
+}
+
+function addBattleHeat(amount) {
+  state.battleHeat = Math.max(0, Math.min(100, state.battleHeat + amount));
+  if (state.battleHeat >= 80) {
+    activateOverdrive(2);
+  } else if (state.battleHeat >= 40) {
+    activateOverdrive(1);
+  }
+}
+
 function comboMultiplier() {
   return CombatSystem.comboMultiplier(state.comboHits);
 }
@@ -933,15 +1595,37 @@ function maybeDropEmergencyHeal(e) {
   }
 }
 
+function maybeSpawnKillStreakReward(e) {
+  state.floorKillCount += 1;
+  if (state.floorKillCount <= 0 || state.floorKillCount % 10 !== 0) return;
+  const isHeal = state.player.hp / state.player.maxHp < 0.52 || Math.random() < 0.55;
+  const x = Math.max(40, Math.min(WORLD_WIDTH - 60, e.x + e.w * 0.5 - 10));
+  state.floor.pickups.push({
+    x,
+    y: GROUND_Y - 24,
+    w: 20,
+    h: 20,
+    type: isHeal ? "heal" : "artifact",
+    heal: isHeal ? 28 : undefined,
+    key: isHeal ? undefined : randomItemKey(() => Math.random()),
+  });
+  log(`연속 처치 보상: ${state.floorKillCount}킬 달성 (${isHeal ? "회복" : "아티팩트"})`);
+}
+
 function onEnemyDefeated(e, source = "hit") {
   if (e.defeated) return;
   e.defeated = true;
   const p = state.player;
   const mul = comboMultiplier();
   gainXp(Math.round(e.xp * mul));
-  p.gold += Math.round((e.type === "boss" ? 40 : (e.type === "exec" ? 28 : 10)) * mul);
+  const baseGold = (e.type === "boss" ? 40 : (e.type === "exec" ? 28 : 10));
+  const mutatorGoldMul = e.goldBonusMul || 1;
+  const roomGoldMul = state.floor?.eventGoldMul || 1;
+  p.gold += Math.round(baseGold * mul * currentOverdriveGoldMul() * mutatorGoldMul * roomGoldMul);
+  addBattleHeat(e.type === "mob" ? 10 : 26);
   if (p.lifeStealOnKill > 0) p.hp = Math.min(p.maxHp, p.hp + p.lifeStealOnKill);
   maybeDropEmergencyHeal(e);
+  maybeSpawnKillStreakReward(e);
   if (e.type !== "mob") log(`격파: ${e.name}`);
   if (source === "projectile") addScreenFx("slash", { strength: 0.15 });
   spawnDamageText(e.x + e.w * 0.5, e.y - 16, "K.O", e.type === "mob" ? "#d8f0ff" : "#ffd6de", true);
@@ -956,7 +1640,7 @@ function takeDamage(amount) {
     log(`${p.styleName} 회피 발동`);
     return;
   }
-  const finalDamage = Math.max(1, Math.round(amount * (p.styleArmorMul || 1) * (p.assistArmorMul || 1)));
+  const finalDamage = Math.max(1, Math.round(amount * (p.styleArmorMul || 1) * (p.assistArmorMul || 1) * (p.damageTakenMul || 1)));
   p.hp -= finalDamage;
   spawnDamageText(p.x + p.w * 0.5, p.y - 8, `-${finalDamage}`, "#ff9ea1", true);
   state.comboHits = 0;
@@ -995,8 +1679,8 @@ function processLevelUps() {
 
 function levelUp() {
   const p = state.player;
-  const picked = new Set(p.skillNames);
-  const available = skillPool.filter((s) => !picked.has(s.label));
+  const picked = new Set(p.skillIds || []);
+  const available = SKILL_TEMPLATES.filter((s) => !picked.has(s.id));
   if (available.length === 0) {
     p.maxHp += 8;
     p.hp += 8;
@@ -1007,7 +1691,16 @@ function levelUp() {
   const opts = [];
   while (opts.length < Math.min(3, available.length)) {
     const candidate = available[Math.floor(Math.random() * available.length)];
-    if (!opts.includes(candidate)) opts.push(candidate);
+    if (!opts.find((o) => o.id === candidate.id)) {
+      const rolled = candidate.roll();
+      opts.push({
+        id: candidate.id,
+        label: candidate.label,
+        desc: rolled.desc,
+        tag: rolled.tag || candidate.label,
+        apply: rolled.apply,
+      });
+    }
   }
 
   state.skillOptions = opts;
@@ -1024,8 +1717,9 @@ function chooseSkill(idx) {
   const opt = state.skillOptions[idx];
   if (!opt) return;
   opt.apply(state.player);
-  state.player.skillNames.push(opt.label);
-  log(`스킬 획득: ${opt.label}`);
+  state.player.skillIds.push(opt.id);
+  state.player.skillNames.push(opt.tag || opt.label);
+  log(`스킬 획득: ${opt.label} (${opt.desc})`);
   state.choosingSkill = false;
   state.mode = "playing";
   state.running = true;
@@ -1039,8 +1733,8 @@ function intersects(a, b) {
 
 function updatePlayer(dt) {
   const p = state.player;
-  const dtf = dt / 16.6667;
-  const speed = p.baseSpeed * p.speedMul;
+  const dtSec = dt * 0.001;
+  const speedPerSec = p.baseSpeed * p.speedMul * currentOverdriveSpeedMul() * 60;
   const wasOnGround = p.onGround;
   const weaponId = p.weapon?.id;
   const affixId = p.weapon?.affix?.id;
@@ -1052,24 +1746,28 @@ function updatePlayer(dt) {
   if (move !== 0) p.facing = move;
 
   if (p.dashTimer > 0) {
-    p.vx = p.facing * 14 * dtf;
+    p.vx = p.facing * 14 * 60;
     p.dashTimer -= dt;
   } else {
-    p.vx = move * speed * dtf;
+    p.vx = move * speedPerSec;
     if (state.keys["ArrowUp"] && p.onGround) {
-      p.vy = -12.5 * dtf;
+      // 점프 초기 속도는 프레임 시간과 무관한 상수여야 높이가 안정된다.
+      p.vy = -12.5 * 60;
       p.onGround = false;
       spawnParticles(p.x + p.w / 2, p.y + p.h, 7, "#a9d6ff", 2.2);
     }
   }
 
-  p.vy += 0.58 * dtf;
+  p.vy += (0.58 * 60 * 60) * dtSec;
   p.attackTimer -= dt;
   p.invuln -= dt;
   p.landTimer = Math.max(0, (p.landTimer || 0) - dt);
+  if (state.running && p.regenPerSec > 0) {
+    p.hp = Math.min(p.maxHp, p.hp + (p.regenPerSec * dt * 0.001));
+  }
 
-  p.x += p.vx;
-  p.y += p.vy;
+  p.x += p.vx * dtSec;
+  p.y += p.vy * dtSec;
   const landingSpeed = p.vy;
 
   if (p.x < 0) p.x = 0;
@@ -1078,7 +1776,7 @@ function updatePlayer(dt) {
   p.onGround = false;
   for (const plat of state.floor.platforms) {
     if (p.vy >= 0 && p.x + p.w > plat.x && p.x < plat.x + plat.w) {
-      const prevY = p.y - p.vy;
+      const prevY = p.y - p.vy * dtSec;
       if (prevY + p.h <= plat.y && p.y + p.h >= plat.y) {
         p.y = plat.y - p.h;
         p.vy = 0;
@@ -1087,7 +1785,7 @@ function updatePlayer(dt) {
     }
   }
 
-  if (!wasOnGround && p.onGround && landingSpeed > 5) {
+  if (!wasOnGround && p.onGround && landingSpeed > 300) {
     spawnParticles(p.x + p.w / 2, p.y + p.h, 9, "#d9e1f0", 1.6);
     p.landTimer = 130;
   }
@@ -1110,6 +1808,7 @@ function updatePlayer(dt) {
     p.attackTimer = p.attackCd * p.attackCdMul;
     if (weaponId === "weapon_keyboard_split") {
       p.extraAttackTimer = 70;
+      triggerWeaponPassiveHint("스플릿 예비 타격");
     }
     p.attackSwing = 160;
   }
@@ -1129,14 +1828,14 @@ function updatePlayer(dt) {
         canReturn: weaponId === "weapon_keyboard_capacitive",
         returning: false,
         maxDist: weaponId === "weapon_keyboard_capacitive" ? 520 : 380,
-        damage: Math.round(p.baseDamage * p.damageMul * (weaponId === "weapon_keyboard_capacitive" ? 1.05 : 0.75)),
+        damage: Math.round(p.baseDamage * currentPlayerDamageMul() * (weaponId === "weapon_keyboard_capacitive" ? 1.05 : 0.75)),
         color: affixId === "wireless" ? "#ffd369" : "#bfe3ff",
       });
       log(weaponId === "weapon_keyboard_capacitive" ? "무접점 강화 입력 발동" : "Wireless 안정화 발동");
     }
   }
 
-  if (Math.abs(p.vx) > 0.4 && p.onGround) p.walkAnim += dt * 0.025;
+  if (Math.abs(p.vx) > 24 && p.onGround) p.walkAnim += dt * 0.025;
   p.attackSwing = Math.max(0, p.attackSwing - dt);
   if (p.attackSwing <= 0) p.lastAttackRange = null;
 }
@@ -1144,7 +1843,7 @@ function updatePlayer(dt) {
 function doAttack(opts = {}) {
   const p = state.player;
   playSfx("hit");
-  const reach = p.styleReachBonus || 0;
+  const reach = (p.styleReachBonus || 0) + (p.skillReachBonus || 0);
   const range = {
     x: p.facing > 0 ? p.x + p.w : p.x - (60 + reach),
     y: p.y + 8,
@@ -1154,8 +1853,9 @@ function doAttack(opts = {}) {
   p.lastAttackRange = { ...range };
   const weaponId = p.weapon?.id;
   const affixId = p.weapon?.affix?.id;
-  const baseDamage = Math.round(p.baseDamage * p.damageMul * (opts.isExtra ? 0.6 : 1));
+  const baseDamage = Math.round(p.baseDamage * currentPlayerDamageMul() * (opts.isExtra ? 0.6 : 1));
   let hit = false;
+  let passiveHint = "";
 
   for (const e of state.floor.enemies) {
     if (e.hp <= 0) continue;
@@ -1166,10 +1866,19 @@ function doAttack(opts = {}) {
         damage = Math.round(damage * 1.7);
         isCrit = true;
         addScreenFx("slash", { strength: 0.16 });
+        if (!passiveHint) passiveHint = "청축 치명타";
       }
       if (weaponId === "weapon_keyboard_red" && isBackAttack(p, e)) {
         damage = Math.round(damage * 1.5);
         isCrit = true;
+        if (!passiveHint) passiveHint = "적축 백어택";
+      }
+      if (!isCrit && p.critChance > 0 && Math.random() < p.critChance) {
+        damage = Math.round(damage * (p.critDamageMul || 1.5));
+        isCrit = true;
+      }
+      if (p.executeThreshold > 0 && e.hp / Math.max(1, e.maxHp) <= p.executeThreshold) {
+        damage = Math.round(damage * (1 + (p.executeDamageMul || 0)));
       }
       e.hp -= damage;
       spawnDamageText(e.x + e.w * 0.5, e.y - 4, damage, isCrit ? "#fff1b3" : "#ffe3a5", isCrit);
@@ -1182,7 +1891,13 @@ function doAttack(opts = {}) {
       spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.type === "boss" ? 12 : 6, "#ffd369", e.type === "boss" ? 3.2 : 2.4);
       if (weaponId === "weapon_keyboard_dusty") {
         spawnParticles(e.x + e.w / 2, e.y + e.h / 2, 14, "#b8b6ad", 1.4);
+        if (!passiveHint) passiveHint = "먼지 타격";
+      } else if (weaponId === "weapon_keyboard_rgb" && !passiveHint) {
+        passiveHint = "RGB 도트 점화";
+      } else if (weaponId === "weapon_keyboard_aluminum" && !passiveHint) {
+        passiveHint = "알루미늄 경직";
       }
+      if (affixId === "sticky" && !passiveHint) passiveHint = "Sticky 감속";
       if (e.hp <= 0) {
         onEnemyDefeated(e, "hit");
       }
@@ -1193,6 +1908,7 @@ function doAttack(opts = {}) {
     if (!opts.isExtra) log("공격 적중");
     const x = p.facing > 0 ? range.x + range.w - 8 : range.x + 8;
     spawnParticles(x, range.y + range.h / 2, 5, "#ffffff", 1.4);
+    if (passiveHint) triggerWeaponPassiveHint(passiveHint);
   }
 
   if (ENABLE_RANGED_ATTACKS && !opts.noProjectile && weaponId === "weapon_keyboard_capacitive") {
@@ -1214,7 +1930,7 @@ function doAttack(opts = {}) {
 
 function updateEnemies(dt) {
   const p = state.player;
-  const dtf = dt / 16.6667;
+  const dtSec = dt * 0.001;
   for (const e of state.floor.enemies) {
     if (e.hp <= 0) continue;
     e.hitFlash -= dt;
@@ -1232,23 +1948,21 @@ function updateEnemies(dt) {
     }
     if (e.hp <= 0) continue;
 
-    if (e.type === "boss" && e.name.includes("CEO")) {
-      const ratio = e.hp / e.maxHp;
-      const phase = ratio > 0.66 ? 1 : (ratio > 0.33 ? 2 : 3);
+    if (e.type === "boss" || e.type === "exec") {
+      const phase = resolveEnemyPhaseIndex(e);
       if (phase > (e.phaseIndex || 1)) {
-        e.phaseIndex = phase;
-        triggerCeoCutin(`대표이사 페이즈 ${phase}`, phase === 2 ? "임원진 긴급 결재 회의" : "최종 통보: 야근 확정");
-        addShake(5.6);
-        log(`대표이사 페이즈 전환: ${phase}`);
+        onElitePhaseShift(e, phase);
       }
     }
 
     if ((e.type === "boss" || e.type === "exec") && e.skillTimer != null) {
       e.skillTimer -= dt;
       if (e.skillTimer <= 0) {
-        if (e.type === "exec") castExecutiveSkill(e, p);
-        else castBossSkill(e, p);
-        e.skillTimer = e.skillCd || 1800;
+        const phase = e.phaseIndex || resolveEnemyPhaseIndex(e);
+        if (e.type === "exec") castExecutiveSkill(e, p, phase);
+        else castBossSkill(e, p, phase);
+        const phaseCdMul = Math.max(0.58, 1 - (phase - 1) * 0.14);
+        e.skillTimer = (e.skillCd || 1800) * phaseCdMul;
       }
     }
 
@@ -1289,14 +2003,17 @@ function updateEnemies(dt) {
           e.dir = dist > 0 ? 1 : -1;
         }
       }
-      e.x += e.dir * e.speed * speedMul * dtf;
+      const phaseSpeedMul = (e.type === "boss" || e.type === "exec")
+        ? (1 + Math.max(0, (e.phaseIndex || 1) - 1) * 0.12)
+        : 1;
+      e.x += e.dir * e.speed * speedMul * phaseSpeedMul * dtSec * 60;
       if (e.x < 90) e.dir = 1;
       if (e.x + e.w > WORLD_WIDTH - 90) e.dir = -1;
     }
 
     if (e.stunTimer <= 0 && intersects(e, p)) {
       takeDamage(e.damage);
-      p.x += e.dir * 2.8 * dtf;
+      p.x += e.dir * 2.8 * dtSec * 60;
     }
   }
 
@@ -1364,29 +2081,29 @@ function spawnDamageText(x, y, value, color = "#ffe3a5", isCrit = false) {
 }
 
 function updateParticles(dt) {
-  const dtf = dt / 16.6667;
+  const dtSec = dt * 0.001;
   state.particles = state.particles.filter((p) => {
     p.life -= dt;
-    p.x += p.vx * dtf;
-    p.y += p.vy * dtf;
-    p.vy += 0.04 * dtf;
-    p.vx *= Math.pow(0.985, dtf);
+    p.x += p.vx * dtSec * 60;
+    p.y += p.vy * dtSec * 60;
+    p.vy += 0.04 * dtSec * 3600;
+    p.vx *= Math.pow(0.985, dtSec * 60);
     return p.life > 0;
   });
 }
 
 function updateDamageTexts(dt) {
-  const dtf = dt / 16.6667;
+  const dtSec = dt * 0.001;
   state.damageTexts = state.damageTexts.filter((d) => {
     d.life -= dt;
-    d.y += d.vy * dtf;
-    d.vy += 0.035 * dtf;
+    d.y += d.vy * dtSec * 60;
+    d.vy += 0.035 * dtSec * 3600;
     return d.life > 0;
   });
 }
 
 function updateProjectiles(dt) {
-  const dtf = dt / 16.6667;
+  const dtSec = dt * 0.001;
   state.projectiles = state.projectiles.filter((prj) => {
     prj.life -= dt;
     if (prj.life <= 0) return false;
@@ -1399,7 +2116,7 @@ function updateProjectiles(dt) {
       prj.vx = dir * Math.abs(prj.vx);
       if (Math.abs(px - prj.x) < 20) return false;
     }
-    prj.x += prj.vx * dtf;
+    prj.x += prj.vx * dtSec * 60;
 
     for (const e of state.floor.enemies) {
       if (e.hp <= 0) continue;
@@ -1477,9 +2194,10 @@ function spawnEnemyTelegraph(x, y, w, h, opts = {}) {
   });
 }
 
-function castExecutiveSkill(e, p) {
+function castExecutiveSkill(e, p, phase = 1) {
   const cx = e.x + e.w * 0.5;
   const cy = e.y + e.h * 0.5;
+  const phaseDamageMul = 1 + (Math.max(1, phase) - 1) * 0.18;
   addShake(1.8);
   addScreenFx("alert");
   playSfx("executive");
@@ -1493,7 +2211,7 @@ function castExecutiveSkill(e, p) {
       onTrigger: () => {
         spawnHazard(hx, GROUND_Y - 42, 130, 42, {
           life: 1500,
-          damage: 9,
+          damage: Math.round(9 * phaseDamageMul),
           interval: 260,
           color: "rgba(225,170,255,0.28)",
           border: "rgba(242,210,255,0.9)",
@@ -1521,7 +2239,7 @@ function castExecutiveSkill(e, p) {
         for (const spread of [-0.25, 0, 0.25]) {
           spawnEnemyProjectile(cx, cy, (nx + spread) * 4.6, (ny + spread * 0.5) * 4.2, {
             color: "#ffd38a",
-            damage: 12,
+            damage: Math.round(12 * phaseDamageMul),
             life: 2200,
           });
         }
@@ -1541,7 +2259,7 @@ function castExecutiveSkill(e, p) {
           const a = (Math.PI * 2 * i) / 8;
           spawnEnemyProjectile(cx, cy, Math.cos(a) * 3.6, Math.sin(a) * 3.6, {
             color: "#ffe07a",
-            damage: 10,
+            damage: Math.round(10 * phaseDamageMul),
             w: 8,
             h: 8,
             life: 1600,
@@ -1562,7 +2280,7 @@ function castExecutiveSkill(e, p) {
       onTrigger: () => {
         spawnHazard(hx, GROUND_Y - 40, 120, 40, {
           life: 2100,
-          damage: 8,
+          damage: Math.round(8 * phaseDamageMul),
           interval: 280,
           color: "rgba(220,150,255,0.26)",
           border: "rgba(240,200,255,0.9)",
@@ -1585,7 +2303,7 @@ function castExecutiveSkill(e, p) {
         for (let i = 0; i < 2; i++) {
           spawnEnemyProjectile(cx, cy - 10 + i * 18, dir * 4.8, 0, {
             color: "#d5b9ff",
-            damage: 13,
+            damage: Math.round(13 * phaseDamageMul),
             w: 18,
             h: 8,
             life: 1700,
@@ -1596,9 +2314,20 @@ function castExecutiveSkill(e, p) {
     log(`${e.name}: 컴플라이언스 통보`);
     return;
   }
+  if (phase >= 3 && !ENABLE_RANGED_ATTACKS) {
+    const hx = Math.max(80, Math.min(WORLD_WIDTH - 190, p.x - 45));
+    spawnHazard(hx, GROUND_Y - 42, 130, 42, {
+      life: 900,
+      damage: Math.round(7 * phaseDamageMul),
+      interval: 230,
+      color: "rgba(245,190,255,0.26)",
+      border: "rgba(245,220,255,0.86)",
+      label: "임원 보조 결재",
+    });
+  }
 }
 
-function castBossSkill(e, p) {
+function castBossSkill(e, p, phase = 1) {
   const cx = e.x + e.w * 0.5;
   const cy = e.y + e.h * 0.45;
   const zone = e.zone || state.floor.info.zone;
@@ -1611,6 +2340,10 @@ function castBossSkill(e, p) {
   else if (zone === "executive") playSfx("executive");
   else playSfx("boss");
   if (!ENABLE_RANGED_ATTACKS) {
+    const phaseNow = Math.max(1, phase || e.phaseIndex || 1);
+    const phaseMul = 1 + (phaseNow - 1) * 0.2;
+    const telegraphW = Math.round(150 * (1 + (phaseNow - 1) * 0.18));
+    const telegraphH = Math.round(46 * (1 + (phaseNow - 1) * 0.1));
     const hx = Math.max(90, Math.min(WORLD_WIDTH - 230, p.x - 65));
     const meleeLabelByZone = {
       parking: "호루라기 돌진",
@@ -1624,23 +2357,55 @@ function castBossSkill(e, p) {
       executive: "임원실 결재 폭압",
     };
     const label = isCeo ? "야근 확정 공표" : (meleeLabelByZone[zone] || "근접 제압");
-    spawnEnemyTelegraph(hx, GROUND_Y - 46, 150, 46, {
-      life: 520,
+    spawnEnemyTelegraph(hx, GROUND_Y - telegraphH, telegraphW, telegraphH, {
+      life: Math.max(360, 520 - (phaseNow - 1) * 55),
       label,
       color: isCeo ? "rgba(255,150,190,0.22)" : "rgba(255,150,130,0.2)",
       border: isCeo ? "rgba(255,205,228,0.92)" : "rgba(255,205,186,0.9)",
       onTrigger: () => {
-        spawnHazard(hx, GROUND_Y - 46, 150, 46, {
-          life: isCeo ? 1700 : 1400,
-          damage: isCeo ? 12 : 10,
+        const baseDamage = isCeo ? 12 : 10;
+        spawnHazard(hx, GROUND_Y - telegraphH, telegraphW, telegraphH, {
+          life: (isCeo ? 1700 : 1400) + (phaseNow - 1) * 180,
+          damage: Math.round(baseDamage * phaseMul),
           interval: 260,
           color: isCeo ? "rgba(255,150,190,0.3)" : "rgba(255,150,130,0.27)",
           border: isCeo ? "rgba(255,205,228,0.92)" : "rgba(255,205,186,0.9)",
           label,
         });
+        if (phaseNow >= 2) {
+          const sideW = Math.round(telegraphW * 0.62);
+          const sideX = Math.max(90, Math.min(WORLD_WIDTH - sideW - 90, hx + (p.x > e.x ? -46 : 46)));
+          spawnHazard(sideX, GROUND_Y - telegraphH, sideW, telegraphH, {
+            life: 900 + (phaseNow - 2) * 180,
+            damage: Math.max(5, Math.round(baseDamage * phaseMul * 0.68)),
+            interval: 240,
+            color: isCeo ? "rgba(255,166,200,0.24)" : "rgba(255,170,140,0.24)",
+            border: isCeo ? "rgba(255,220,236,0.82)" : "rgba(255,218,198,0.8)",
+            label: `${label} - 확장`,
+          });
+        }
+        if (phaseNow >= 3) {
+          const pressureX = Math.max(86, Math.min(WORLD_WIDTH - 186, p.x - 58));
+          spawnEnemyTelegraph(pressureX, GROUND_Y - 42, 128, 42, {
+            life: 290,
+            label: "압박 재시전",
+            color: isCeo ? "rgba(255,132,178,0.2)" : "rgba(255,142,118,0.2)",
+            border: isCeo ? "rgba(255,210,228,0.86)" : "rgba(255,212,188,0.84)",
+            onTrigger: () => {
+              spawnHazard(pressureX, GROUND_Y - 42, 128, 42, {
+                life: 760,
+                damage: Math.max(6, Math.round(baseDamage * phaseMul * 0.72)),
+                interval: 210,
+                color: isCeo ? "rgba(255,130,170,0.26)" : "rgba(255,150,120,0.24)",
+                border: isCeo ? "rgba(255,220,236,0.84)" : "rgba(255,212,188,0.82)",
+                label: "압박 재시전",
+              });
+            },
+          });
+        }
       },
     });
-    log(`${e.name}: ${label}`);
+    log(`${e.name}: ${label} (P${phaseNow})`);
     return;
   }
 
@@ -1811,7 +2576,7 @@ function castBossSkill(e, p) {
 
 function updateEnemyAttacks(dt) {
   const p = state.player;
-  const dtf = dt / 16.6667;
+  const dtSec = dt * 0.001;
   state.enemyTelegraphs = state.enemyTelegraphs.filter((tg) => {
     tg.life -= dt;
     if (tg.life <= 0) {
@@ -1824,8 +2589,8 @@ function updateEnemyAttacks(dt) {
   state.enemyProjectiles = state.enemyProjectiles.filter((prj) => {
     prj.life -= dt;
     if (prj.life <= 0) return false;
-    prj.x += prj.vx * dtf;
-    prj.y += prj.vy * dtf;
+    prj.x += prj.vx * dtSec * 60;
+    prj.y += prj.vy * dtSec * 60;
     if (intersects(prj, p)) {
       takeDamage(prj.damage);
       return false;
@@ -1880,6 +2645,93 @@ function drawPixelRect(x, y, w, h, color) {
   ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
 }
 
+function resolveFrameRect(img, frameSpec) {
+  if (!img || !img.naturalWidth || !img.naturalHeight) return null;
+  if (!frameSpec || !frameSpec.w || !frameSpec.h) {
+    return { sx: 0, sy: 0, sw: img.naturalWidth, sh: img.naturalHeight };
+  }
+  const sx = Math.max(0, Math.min(frameSpec.x || 0, img.naturalWidth - 1));
+  const sy = Math.max(0, Math.min(frameSpec.y || 0, img.naturalHeight - 1));
+  return {
+    sx,
+    sy,
+    sw: Math.max(1, Math.min(frameSpec.w, img.naturalWidth - sx)),
+    sh: Math.max(1, Math.min(frameSpec.h, img.naturalHeight - sy)),
+  };
+}
+
+function drawImageSprite(img, x, y, w, h, flip = false, alpha = 1, frameSpec = null) {
+  if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
+  const src = resolveFrameRect(img, frameSpec);
+  if (!src) return false;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (flip) {
+    ctx.translate(Math.round(x + w), Math.round(y));
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, src.sx, src.sy, src.sw, src.sh, 0, 0, Math.round(w), Math.round(h));
+  } else {
+    ctx.drawImage(img, src.sx, src.sy, src.sw, src.sh, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+  ctx.restore();
+  return true;
+}
+
+function tileArtKeyForZone(zone) {
+  if (zone === "parking" || zone === "server") return "stoneMid";
+  if (zone === "cafeteria" || zone === "marketing") return "grassMid";
+  return "brickWall";
+}
+
+function monsterArtKeyForArchetype(archetype) {
+  switch (archetype) {
+    case "crawler":
+      return "snail";
+    case "drone":
+      return "bat";
+    case "watcher":
+      return "dark_guard";
+    case "caster":
+      return "necromancer";
+    case "wisp":
+      return "skull_slime";
+    case "beast":
+      return "goblin_hog";
+    case "bulky":
+      return "golem";
+    case "glitcher":
+      return "skull_slime";
+    case "agent":
+      return "dark_guard";
+    default:
+      return "goblin";
+  }
+}
+
+function monsterArtKeyForEnemy(enemy) {
+  const name = (enemy?.name || "").toLowerCase();
+  if (name.includes("골렘") || name.includes("golem")) return "golem";
+  if (name.includes("유령") || name.includes("망령") || name.includes("ghost")) return "necromancer";
+  if (name.includes("박쥐") || name.includes("bat") || name.includes("드론")) return "bat";
+  if (name.includes("슬라임") || name.includes("glitch") || name.includes("도플")) return "skull_slime";
+  if (name.includes("달팽") || name.includes("snail")) return "snail";
+  if (name.includes("개구") || name.includes("frog")) return "frog";
+  if (name.includes("버섯") || name.includes("mushroom")) return "mushroom";
+  if (name.includes("집행관") || name.includes("검열관") || name.includes("guard")) return "dark_guard";
+  if (name.includes("사냥개") || name.includes("포식자") || name.includes("hog")) return "goblin_hog";
+  return monsterArtKeyForArchetype(enemy?.archetype);
+}
+
+function eliteArtKeyForEnemy(enemy) {
+  const name = (enemy?.name || "").toLowerCase();
+  if (name.includes("ceo") || name.includes("대표") || name.includes("이사")) return "dark_guard";
+  if (name.includes("골렘") || name.includes("golem")) return "golem";
+  if (name.includes("헌터") || name.includes("망령") || name.includes("necro")) return "necromancer";
+  if (name.includes("거미") || name.includes("사냥개") || name.includes("hog")) return "goblin_hog";
+  if (enemy?.type === "boss") return "dark_guard";
+  return "necromancer";
+}
+
 function drawGroundShadow(cx, y, w, alpha = 0.22) {
   const width = Math.max(10, w);
   drawPixelRect(cx - width * 0.5, y, width, 3, `rgba(0,0,0,${alpha})`);
@@ -1890,6 +2742,11 @@ function drawGroundShadow(cx, y, w, alpha = 0.22) {
 
 function drawStatusPips(e, x, y) {
   let px = x;
+  if (e.mutatorId) {
+    const c = ENEMY_MUTATORS[e.mutatorId]?.color || "#d0d7de";
+    drawPixelRect(px, y, 6, 6, c);
+    px += 8;
+  }
   if (e.stunTimer > 0) {
     drawPixelRect(px, y, 6, 6, "#ffd369");
     px += 8;
@@ -2955,6 +3812,34 @@ function drawBackground() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+  const bg = ART_ASSETS.backgrounds;
+  if (bg?.sky?.complete && bg.sky.naturalWidth) {
+    const layers = [
+      { img: bg.sky, speed: 0.06, y: -20, h: HEIGHT * 0.72, alpha: 0.78 },
+      { img: bg.mountains, speed: 0.12, y: 38, h: HEIGHT * 0.56, alpha: 0.68 },
+      { img: bg.trees02, speed: 0.2, y: 98, h: HEIGHT * 0.5, alpha: 0.64 },
+      { img: bg.trees01, speed: 0.3, y: 122, h: HEIGHT * 0.46, alpha: 0.72 },
+    ];
+    for (const layer of layers) {
+      if (!layer.img?.complete || !layer.img.naturalWidth) continue;
+      const scale = layer.h / layer.img.naturalHeight;
+      const drawW = Math.max(WIDTH, Math.round(layer.img.naturalWidth * scale));
+      const offset = -((state.cameraX * layer.speed) % drawW);
+      for (let x = offset - drawW; x < WIDTH + drawW; x += drawW) {
+        drawImageSprite(layer.img, x, layer.y, drawW, layer.h, false, layer.alpha);
+      }
+    }
+    if (bg.mergedDark?.complete && bg.mergedDark.naturalWidth) {
+      const mergedH = HEIGHT * 0.62;
+      const mergedW = Math.round(bg.mergedDark.naturalWidth * (mergedH / bg.mergedDark.naturalHeight));
+      const offset = -((state.cameraX * 0.16) % mergedW);
+      for (let x = offset - mergedW; x < WIDTH + mergedW; x += mergedW) {
+        drawImageSprite(bg.mergedDark, x, HEIGHT - mergedH - 16, mergedW, mergedH, false, 0.36);
+      }
+    }
+    drawPixelRect(0, 0, WIDTH, HEIGHT, "rgba(6,10,18,0.36)");
+  }
+
   // 대기 안개
   for (let i = 0; i < 3; i++) {
     const drift = (performance.now() * (0.004 + i * 0.0012) + i * 97) % (WIDTH + 240);
@@ -3097,6 +3982,9 @@ function drawWorld() {
   if (state.floor.shop) {
     drawShop(state.floor.shop);
   }
+  if (state.floor.eventRoom) {
+    drawEventRoom(state.floor.eventRoom);
+  }
 
   // 파티클
   drawProjectiles();
@@ -3231,6 +4119,15 @@ function drawPlatforms() {
     if (p.y >= GROUND_Y) {
       // 바닥
       drawPixelRect(p.x, p.y, p.w, p.h, theme.floor);
+      const tileArt = ART_ASSETS.tiles[tileArtKeyForZone(zone)];
+      if (tileArt?.complete && tileArt.naturalWidth > 0) {
+        const tileH = Math.max(10, Math.min(p.h, 18));
+        const tileW = Math.max(24, Math.round(tileArt.naturalWidth * (tileH / tileArt.naturalHeight)));
+        for (let tx = 0; tx < p.w; tx += tileW) {
+          const drawW = Math.min(tileW, p.w - tx);
+          drawImageSprite(tileArt, p.x + tx, p.y + p.h - tileH, drawW, tileH, false, 0.42);
+        }
+      }
       if (zone === "parking") {
         for (let tx = 0; tx < p.w; tx += 56) {
           drawPixelRect(p.x + tx, p.y + 2, 3, p.h - 2, "rgba(210,225,240,0.12)");
@@ -3284,6 +4181,15 @@ function drawPlatforms() {
       // 공중 플랫폼
       drawPixelRect(p.x, p.y, p.w, p.h, theme.wall);
       drawPixelRect(p.x, p.y, p.w, 4, theme.accent);
+      const tileArt = ART_ASSETS.tiles.brickWall;
+      if (tileArt?.complete && tileArt.naturalWidth > 0) {
+        const tileH = Math.max(10, Math.min(p.h - 2, 16));
+        const tileW = Math.max(20, Math.round(tileArt.naturalWidth * (tileH / tileArt.naturalHeight)));
+        for (let tx = 0; tx < p.w; tx += tileW) {
+          const drawW = Math.min(tileW, p.w - tx);
+          drawImageSprite(tileArt, p.x + tx, p.y + p.h - tileH, drawW, tileH, false, 0.33);
+        }
+      }
       // 타일 디테일
       for (let tx = 10; tx < p.w; tx += 30) {
         drawPixelRect(p.x + tx, p.y + 8, 4, 4, theme.accent + "60");
@@ -3293,13 +4199,13 @@ function drawPlatforms() {
 
   if (state.floor.info.n === 9) {
     const pulse = 0.58 + Math.abs(Math.sin(performance.now() * 0.0035)) * 0.32;
-    drawPixelRect(492, 102, 508, 42, `rgba(32,16,40,${0.32 + pulse * 0.2})`);
+    drawPixelRect(390, 78, 650, 76, `rgba(32,16,40,${0.4 + pulse * 0.25})`);
     ctx.fillStyle = `rgba(255, 245, 220, ${0.68 + pulse * 0.3})`;
-    ctx.font = "bold 24px monospace";
-    ctx.fillText("우리는 남들이 가지 않는 길을 간다", 520, 132);
+    ctx.font = "bold 38px monospace";
+    ctx.fillText("우리는 남들이 가지 않는 길을 간다", 410, 128);
     ctx.fillStyle = `rgba(255, 245, 220, ${0.2 + pulse * 0.18})`;
-    ctx.font = "bold 14px monospace";
-    ctx.fillText("우리는 남들이 가지 않는 길을 간다", 920, 176);
+    ctx.font = "bold 20px monospace";
+    ctx.fillText("우리는 남들이 가지 않는 길을 간다", 540, 166);
   }
 }
 
@@ -3317,6 +4223,15 @@ function drawPlayer(p) {
   const drawX = x + attackKick;
   const spriteVisualHeight = 16 * pixelSize;
   const drawY = y + (p.h - spriteVisualHeight) + bob;
+  const playerArtKey = blink ? "hurt" : (!p.onGround ? "jump" : "stand");
+  const playerArt = ART_ASSETS.player[playerArtKey];
+  const playerFrame = ART_FRAME_SPECS.player[playerArtKey];
+  const playerArtRatio = playerFrame ? (playerFrame.w / playerFrame.h) : 0.72;
+  const playerArtH = p.h + 34;
+  const playerArtW = Math.max(p.w + 20, Math.round(playerArtH * playerArtRatio));
+  const playerArtX = Math.round(drawX + (p.w - playerArtW) * 0.5);
+  const playerArtY = Math.round(y + p.h - playerArtH + bob + (p.onGround ? 2 : 0));
+  const playerArtAlpha = blink ? 0.62 : 1;
 
   drawGroundShadow(x + p.w * 0.5, y + p.h + 3, 26, p.onGround ? 0.25 : 0.14);
   
@@ -3327,7 +4242,9 @@ function drawPlayer(p) {
       const ghostX = drawX - p.facing * i * 20;
       const alpha = 0.3 - i * 0.08;
       ctx.globalAlpha = alpha;
-      drawSprite(ghostX, drawY, pixelSize, styleSprites.idle, palette, p.facing < 0);
+      if (!drawImageSprite(playerArt, ghostX + (p.w - playerArtW) * 0.5, playerArtY, playerArtW, playerArtH, p.facing < 0, alpha, playerFrame)) {
+        drawSprite(ghostX, drawY, pixelSize, styleSprites.idle, palette, p.facing < 0);
+      }
       drawPixelRect(ghostX + 6, drawY + 16, 10, 2, dashTint);
     }
     ctx.globalAlpha = 1;
@@ -3352,8 +4269,11 @@ function drawPlayer(p) {
     sprite = Math.sin(p.walkAnim) > 0 ? styleSprites.walk1 : styleSprites.walk2;
   }
 
-  drawSprite(drawX, drawY, pixelSize, sprite, palette, p.facing < 0);
-  drawPlayerDeveloperDetails(p, drawX, drawY, styleId);
+  const drewPlayerArt = drawImageSprite(playerArt, playerArtX, playerArtY, playerArtW, playerArtH, p.facing < 0, playerArtAlpha, playerFrame);
+  if (!drewPlayerArt) {
+    drawSprite(drawX, drawY, pixelSize, sprite, palette, p.facing < 0);
+    drawPlayerDeveloperDetails(p, drawX, drawY, styleId);
+  }
   if (styleId === "vanguard") {
     drawPixelRect(drawX + 2, drawY + 18, 4, 9, "rgba(186,224,255,0.65)");
   } else if (styleId === "phantom") {
@@ -3418,7 +4338,18 @@ function drawEnemy(e) {
       : (e.hp < e.maxHp * 0.4 ? spriteSet.alert : spriteSet.idle);
     const palette = e.type === "boss" ? bossPaletteByZone(e.zone) : execPaletteByZone(e.zone);
     const spriteOffsetX = eliteProfile?.spriteOffsetX ?? (e.type === "boss" ? 10 : 4);
-    drawSprite(x - spriteOffsetX, drawY, pixelSize, sprite, palette, e.dir < 0);
+    const eliteArtKey = eliteArtKeyForEnemy(e);
+    const eliteArt = ART_ASSETS.monsters[eliteArtKey];
+    const eliteFrame = ART_FRAME_SPECS.monsters[eliteArtKey];
+    const eliteRatio = eliteFrame ? eliteFrame.w / eliteFrame.h : 1;
+    const eliteArtH = e.h + (e.type === "boss" ? 66 : 54);
+    const eliteArtW = Math.max(e.w + 24, Math.round(eliteArtH * eliteRatio));
+    const eliteArtX = x + (e.w - eliteArtW) * 0.5;
+    const eliteArtY = y + e.h - eliteArtH + (e.type === "boss" ? 8 : 10);
+    const drewEliteArt = drawImageSprite(eliteArt, eliteArtX, eliteArtY, eliteArtW, eliteArtH, e.dir < 0, 0.96, eliteFrame);
+    if (!drewEliteArt) {
+      drawSprite(x - spriteOffsetX, drawY, pixelSize, sprite, palette, e.dir < 0);
+    }
     drawEliteAccessory(e, x - spriteOffsetX, drawY);
     const auraAlpha = 0.1 + Math.abs(Math.sin(performance.now() * 0.006 + x * 0.01)) * 0.14;
     drawPixelRect(x - 18, drawY - 8, e.w + 34, e.h + 16, `${eliteAuraColor(e)}${auraAlpha})`);
@@ -3435,9 +4366,22 @@ function drawEnemy(e) {
     const sprite = Math.abs(stride) < 0.2 ? spriteSet.idle : (stride > 0 ? spriteSet.walk1 : spriteSet.walk2);
     const mobPalette = mobPaletteByZone(e.zone);
     const mobLift = mobProfile?.lift || 2;
-    drawSprite(x, drawY + mobLift, pixelSize, sprite, mobPalette, e.dir < 0);
-    drawMobAccessory(e, x + 1, drawY + mobLift + 2, pixelSize);
-    drawPixelRect(x - 1, drawY + 2, e.w + 2, e.h + 3, tint);
+    const mobArtKey = monsterArtKeyForEnemy(e);
+    const mobArt = ART_ASSETS.monsters[mobArtKey];
+    const mobFrame = ART_FRAME_SPECS.monsters[mobArtKey];
+    const mobArtRatio = mobFrame ? (mobFrame.w / mobFrame.h) : 1;
+    const mobArtH = e.h + 28;
+    const mobArtW = Math.max(e.w + 12, Math.round(mobArtH * mobArtRatio));
+    const mobArtX = x + (e.w - mobArtW) * 0.5;
+    const mobArtY = y + e.h - mobArtH + mobLift + 4;
+    const drewMobArt = drawImageSprite(mobArt, mobArtX, mobArtY, mobArtW, mobArtH, e.dir < 0, 0.94, mobFrame);
+    if (!drewMobArt) {
+      drawSprite(x, drawY + mobLift, pixelSize, sprite, mobPalette, e.dir < 0);
+      drawMobAccessory(e, x + 1, drawY + mobLift + 2, pixelSize);
+      drawPixelRect(x - 1, drawY + 2, e.w + 2, e.h + 3, tint);
+    } else {
+      drawPixelRect(x - 1, drawY + 2, e.w + 2, e.h + 3, withAlpha("#ffffff", 0.04));
+    }
     drawStatusPips(e, x - 6, y - 42);
   }
 
@@ -3504,6 +4448,28 @@ function drawShop(shop) {
   }
 }
 
+function drawEventRoom(room) {
+  if (!room || room.used) return;
+  const pulse = 0.5 + Math.sin(performance.now() * 0.008) * 0.28;
+  const border = room.color || "#9dd6ff";
+  drawPixelRect(room.x, room.y, room.w, room.h, "rgba(14,20,30,0.9)");
+  drawPixelRect(room.x + 3, room.y + 3, room.w - 6, room.h - 6, "rgba(20,34,52,0.92)");
+  drawPixelRect(room.x + 7, room.y + 16, room.w - 14, 4, border);
+  drawPixelRect(room.x + 7, room.y + room.h - 20, room.w - 14, 4, withAlpha(border, 0.8));
+  drawPixelRect(room.x + 12, room.y + 30, room.w - 24, room.h - 48, withAlpha(border, 0.18 + pulse * 0.2));
+  ctx.fillStyle = "#edf6ff";
+  ctx.font = "bold 11px monospace";
+  ctx.fillText("EVENT", room.x + 7, room.y - 8);
+  ctx.font = "10px monospace";
+  ctx.fillText(room.hint || "특수 이벤트", room.x - 4, room.y + room.h + 12);
+  if (inEventRoomZone() && state.mode === "playing") {
+    drawPixelRect(room.x - 12, room.y - 28, room.w + 24, 16, "rgba(0,0,0,0.68)");
+    ctx.fillStyle = "#e6f1ff";
+    ctx.font = "11px monospace";
+    ctx.fillText("E: 이벤트 활성화", room.x - 6, room.y - 16);
+  }
+}
+
 function drawProjectiles() {
   for (const prj of state.projectiles) {
     drawPixelRect(prj.x, prj.y, prj.w, prj.h, prj.color);
@@ -3565,6 +4531,8 @@ function drawDamageTexts() {
 function objectiveLine() {
   if (!state.floor) return "";
   if (state.floor.info.safeZone) return "목표: B1에서 정비하고 E로 상층 이동";
+  if (state.floor.eventRoom && !state.floor.eventRoom.used && state.floor.gateOpen) return "목표: 이벤트 룸(E) 또는 출구 게이트 이동";
+  if (state.floor.eventRoom && !state.floor.eventRoom.used) return "목표: 특수 이벤트 룸 진입 후 E로 활성화";
   if (state.floor.gateOpen) return "목표: 출구 활성화 완료, 게이트로 이동";
   const left = state.floor.enemies.length;
   return `목표: 남은 적 ${left}체 처치`;
@@ -3650,6 +4618,35 @@ function drawPlayerHpBar(p) {
   drawPixelRect(x, y, bw * ratio, 4, color);
 }
 
+function weaponPassiveStatus() {
+  const p = state.player;
+  const weapon = p.weapon;
+  if (!weapon) {
+    return {
+      title: "무기 패시브",
+      main: "장착 무기 없음",
+      sub: "",
+      active: "",
+    };
+  }
+  const id = weapon.id;
+  let main = weapon.feature || "기본 효과";
+  if (id === "weapon_keyboard_blue") main = "청축: 타격 시 15% 치명";
+  else if (id === "weapon_keyboard_red") main = "적축: 백어택 피해 증가";
+  else if (id === "weapon_keyboard_rgb") main = "RGB: 타격 도트 점화";
+  else if (id === "weapon_keyboard_aluminum") main = "알루미늄: 타격 경직";
+  else if (id === "weapon_keyboard_capacitive") main = "무접점: 입력 안정화";
+  else if (id === "weapon_keyboard_split") main = "스플릿: 추가 타격 예약";
+  const sub = weapon.affix ? `${weapon.affix.label}: ${weapon.affix.feature}` : "";
+  const active = state.weaponPassivePulse > 0 ? `발동: ${state.weaponPassiveHint}` : "상태: 대기";
+  return {
+    title: `${weapon.name} [${weapon.tier}]`,
+    main,
+    sub,
+    active,
+  };
+}
+
 function drawHudBars() {
   const p = state.player;
   const hpRatio = Math.max(0, p.hp / p.maxHp);
@@ -3666,6 +4663,13 @@ function drawHudBars() {
   drawPixelRect(28, 70, 224, 16, "#0e141f");
   const hpColor = hpRatio < 0.3 ? "#ff6b6b" : "#58d68d";
   drawPixelRect(30, 72, 220 * hpRatio, 12, hpColor);
+  const livesIcon = ART_ASSETS.ui.lives;
+  const livesFrame = ART_FRAME_SPECS.ui.lives;
+  if (livesIcon?.complete && livesIcon.naturalWidth) {
+    drawImageSprite(livesIcon, 34, 68, 14, 14, false, 0.95, livesFrame);
+    drawImageSprite(livesIcon, 50, 68, 14, 14, false, 0.8, livesFrame);
+    drawImageSprite(livesIcon, 66, 68, 14, 14, false, 0.65, livesFrame);
+  }
   // HP 바 장식
   drawPixelRect(30, 72, 220, 2, "rgba(255,255,255,0.3)");
   
@@ -3706,6 +4710,9 @@ function drawHudBars() {
   ctx.fillText(`Time Attack: ${formatDuration(runTime)}`, WIDTH - 292, 50);
   ctx.font = "10px monospace";
   ctx.fillText(objectiveLine(), WIDTH - 292, 80);
+  if (ART_ASSETS.ui.boss?.complete && ART_ASSETS.ui.boss.naturalWidth) {
+    drawImageSprite(ART_ASSETS.ui.boss, WIDTH - 74, 20, 18, 18, false, 0.92);
+  }
   drawPixelRect(WIDTH - 292, 60, 240, 10, "#0e141f");
   const progress = Math.max(0, Math.min(1, p.x / (WORLD_WIDTH - p.w)));
   drawPixelRect(WIDTH - 292, 60, 240 * progress, 10, ui.accent);
@@ -3731,6 +4738,41 @@ function drawHudBars() {
     ctx.font = "bold 13px monospace";
     ctx.fillText(`COMBO x${state.comboHits} (${Math.round(comboMultiplier() * 100)}%)`, WIDTH - 212, HEIGHT - 42);
   }
+  if (state.battleHeat > 0 || state.overdriveTimer > 0) {
+    const heatX = WIDTH - 220;
+    const heatY = HEIGHT - 92;
+    const heatRatio = Math.max(0, Math.min(1, state.battleHeat / 100));
+    drawPixelRect(heatX, heatY, 196, 20, "rgba(18,14,28,0.78)");
+    drawPixelRect(heatX + 2, heatY + 2, 192, 16, "rgba(9,12,18,0.9)");
+    const heatColor = state.overdriveTimer > 0 ? "#7de2d1" : "#ffb08a";
+    drawPixelRect(heatX + 4, heatY + 5, 188 * heatRatio, 10, heatColor);
+    ctx.fillStyle = "#f4f7ff";
+    ctx.font = "11px monospace";
+    if (state.overdriveTimer > 0) {
+      ctx.fillText(`OD${state.overdriveTier} ${Math.ceil(state.overdriveTimer / 1000)}s`, heatX + 8, heatY + 14);
+    } else {
+      ctx.fillText(`HEAT ${Math.round(state.battleHeat)}%`, heatX + 8, heatY + 14);
+    }
+  }
+  const passive = weaponPassiveStatus();
+  const passivePanelX = 322;
+  const passivePanelY = HEIGHT - 64;
+  const passivePulse = state.weaponPassivePulse > 0
+    ? Math.min(0.3, state.weaponPassivePulse / 2600)
+    : 0;
+  drawPixelRect(passivePanelX, passivePanelY, 344, 46, `rgba(10,15,24,${(0.78 + passivePulse).toFixed(2)})`);
+  drawPixelRect(passivePanelX + 2, passivePanelY + 2, 340, 42, `rgba(18,30,45,${(0.78 + passivePulse * 0.8).toFixed(2)})`);
+  drawPixelRect(passivePanelX + 2, passivePanelY + 2, 340, 1, withAlpha(ui.accent, 0.65));
+  ctx.fillStyle = ui.accentSoft;
+  ctx.font = "bold 11px monospace";
+  ctx.fillText(passive.title, passivePanelX + 10, passivePanelY + 15);
+  ctx.font = "10px monospace";
+  ctx.fillText(passive.main, passivePanelX + 10, passivePanelY + 27);
+  if (passive.sub) {
+    ctx.fillText(passive.sub, passivePanelX + 10, passivePanelY + 39);
+  }
+  ctx.fillStyle = state.weaponPassivePulse > 0 ? "#ffe7af" : "#ceddf5";
+  ctx.fillText(passive.active, passivePanelX + 184, passivePanelY + 39);
   if (infoPanelsVisible) {
     const weaponLine = p.weapon ? `${p.weapon.name} (${p.weapon.tier}) / ${p.weapon.affix.label}` : "없음";
     const panelW = 410;
@@ -3773,6 +4815,18 @@ function loop(now) {
   if (state.comboTimer > 0) {
     state.comboTimer = Math.max(0, state.comboTimer - dt);
     if (state.comboTimer <= 0) state.comboHits = 0;
+  }
+  if (state.weaponPassivePulse > 0) {
+    state.weaponPassivePulse = Math.max(0, state.weaponPassivePulse - dt);
+    if (state.weaponPassivePulse <= 0) state.weaponPassiveHint = "";
+  }
+  state.battleHeat = Math.max(0, state.battleHeat - dt * (state.overdriveTimer > 0 ? 0.007 : 0.012));
+  if (state.overdriveTimer > 0) {
+    state.overdriveTimer = Math.max(0, state.overdriveTimer - dt);
+    if (state.overdriveTimer <= 0) {
+      state.overdriveTier = 0;
+      log("오버드라이브 종료");
+    }
   }
   state.screenFx = state.screenFx.filter((fx) => {
     fx.life -= dt;
@@ -3832,6 +4886,12 @@ window.addEventListener("keydown", (e) => {
     return;
   }
 
+  if (state.mode === "clearChoice") {
+    if (k === "1") restartAfterClear(false);
+    if (k === "2") restartAfterClear(true);
+    return;
+  }
+
   if (state.mode === "choosingSkill") {
     if (k === "1") chooseSkill(0);
     if (k === "2") chooseSkill(1);
@@ -3844,15 +4904,26 @@ window.addEventListener("keydown", (e) => {
     return;
   }
 
-  if (k === "-" || k === "_") {
+  if ((k === "-" || k === "_") && e.altKey) {
     state.sfxVolume = Math.max(0, state.sfxVolume - 0.05);
     saveSettings();
     log(`SFX 볼륨: ${(state.sfxVolume * 100).toFixed(0)}%`);
+    return;
   }
-  if (k === "=" || k === "+") {
+  if ((k === "=" || k === "+") && e.altKey) {
     state.sfxVolume = Math.min(1, state.sfxVolume + 0.05);
     saveSettings();
     log(`SFX 볼륨: ${(state.sfxVolume * 100).toFixed(0)}%`);
+    return;
+  }
+
+  if (k === "+" || k === "=") {
+    easterEggMoveFloor(1);
+    return;
+  }
+  if (k === "-" || k === "_") {
+    easterEggMoveFloor(-1);
+    return;
   }
   if (lk === "m") {
     state.sfxVolume = state.sfxVolume > 0 ? 0 : 0.55;
@@ -3873,10 +4944,11 @@ window.addEventListener("keydown", (e) => {
     saveRunSnapshot();
   }
   if (k === "e" || k === "E") {
+    if (tryUseEventRoom()) return;
     if (state.floor.info.safeZone && inShopZone()) openShop();
     else tryExit();
   }
-  if ((k === "r" || k === "R") && (state.mode === "dead" || state.mode === "result")) restartAfterDeath();
+  if ((k === "r" || k === "R") && state.mode === "dead") restartAfterDeath();
 });
 
 window.addEventListener("keyup", (e) => {

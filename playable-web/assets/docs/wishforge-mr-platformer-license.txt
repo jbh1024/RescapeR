@@ -1,0 +1,11 @@
+Wishforge - MR Platformer Pixel Assets v1
+
+Source package: MR-Platformer-PixelAssets-v1.zip
+Primary page: https://wishforge.itch.io/free-platformer-pixel-art-assets
+Mirror used for automated download: https://opengameart.org/content/free-pixel-sprites
+
+License: CC-BY 4.0
+License URL: https://creativecommons.org/licenses/by/4.0/
+
+Attribution example:
+"Art assets by Wishforge (MR Platformer Pixel Assets v1), licensed under CC-BY 4.0"

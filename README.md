@@ -1,12 +1,9 @@
 # RescapeR (Merged Repository)
 
-병합 기준:
-- 게임 흐름: 기존 `RescapeR-kimi2` 구현 유지
-- 디렉토리 구조: `Rescape-codex` 구조 준수
-
 ## 저장소 구조
-- `AGENTS.md`: Kimi AI 에이전트 지시 문서 (유지 대상)
-- `PRD.md`: 병합 기준 제품 요구사항 문서
+- `AGENTS.md`: 에이전트 작업/개발 규칙
+- `PRD.md`: 구현/배포 기준 문서
+- `OVERVIEW.md`: 게임 컨셉/층 테마/시스템 개요
 - `Assets/Scripts/*`: Unity/C# 스캐폴딩
 - `playable-web/*`: 실제 실행/배포 대상 웹 게임
 
@@ -20,34 +17,35 @@ python3 -m http.server 8000
 
 ## 검증
 ```bash
-./playable-web/smoke-check.sh
 node --check playable-web/game.js
+./playable-web/smoke-check.sh
 ```
 
-## 배포
-- 정적 호스팅 배포 루트: `playable-web`
-- 필수 파일:
-  - `playable-web/index.html`
-  - `playable-web/styles.css`
-  - `playable-web/game.js`
-  - `playable-web/manifest.webmanifest`
-  - `playable-web/sw.js`
-  - `playable-web/icon.svg`
+## 현재 구현 요약
+- 진행 루프: `B6 시작 -> 층 진행 -> 9F 보스 -> 클리어 선택 -> 재도전 루프`
+- 전투: 무기/어픽스, 스킬 랜덤 수치, 콤보/오버드라이브, 적 변이
+- 보스전: 페이즈 분기(1~3), 페이즈 전환 연출, 페이즈별 패턴 강화
+- 시스템: 랭킹(총 클리어 횟수 우선 + 동률 시 클리어타임), 저장/복구, 적응형 보조
+- 층 콘텐츠: B1 상점, 층별 특수 이벤트 룸(E 활성화), 이스터에그 층 이동(+/-)
+- UI/HUD: 상태/조작/로그 토글(`H`), 무기 고유 패시브 HUD, 보스/목표/타임어택 표시
 
-## 구현 요약
-- B6 시작 -> 층 진행 -> 9F 보스 -> 10F 결과 -> 루프
-- 무기/어픽스, B1 상점, 스킬 선택, 보스 텔레그래프
-- 전투 스타일, 콤보, 기록 시스템, 적응형 보조
-
-## 현재 조작
+## 주요 조작
 - 이동: `← / →`
 - 점프: `↑`
 - 공격: `Space`
 - 대시: `Shift`
-- 상호작용/상점: `E`
+- 상호작용/상점/이벤트: `E`
 - 소비 슬롯: `Q`
+- 스킬 선택: `1 / 2 / 3`
+- 재시작(사망): `R`
+- 정보 패널 토글(조작법/로그/상태): `H`
+- 이스터에그 층 이동: `+ / -`
+- 볼륨: `Alt + + / Alt + -`
+- 음소거: `M`
+- 이펙트 간소화: `V`
+- 일시정지: `P`
 
 ## 문서 기준
 - 제품 요구사항/운영 기준: `PRD.md`
-- 게임 전반 컨셉/층별 상세: `OVERVIEW.md`
+- 게임 전반 컨셉/층 상세: `OVERVIEW.md`
 - 웹 실행 상세: `playable-web/README.md`
