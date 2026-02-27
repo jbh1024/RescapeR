@@ -7,7 +7,35 @@
 - `Assets/Scripts/*`: Unity/C# 스캐폴딩
 - `playable-web/*`: 실제 실행/배포 대상 웹 게임
 
-## 웹 실행
+## 🐳 Docker 배포 (권장)
+
+### 빠른 시작 (로컬)
+```bash
+# 이미지 빌드 및 실행
+./scripts/deploy.sh dev
+
+# 브라우저에서 접속
+open http://localhost:8080
+```
+
+### 🚀 Docker Hub 배포
+
+```bash
+# 멀티 아키텍처 빌드 (권장 - AMD64/ARM64 모두 지원)
+./scripts/build-multiarch.sh v1.0.7 yourusername
+
+# 또는 단일 플랫폼 빌드
+./scripts/deploy-dockerhub.sh v1.0.7 yourusername
+
+# 배포 후 실행 (어떤 서버에서든 자동으로 맞는 아키텍처 선택)
+docker run -p 8080:80 yourusername/rescaper:latest
+```
+
+**플랫폼 오류 발생 시?** → [DOCKER_PLATFORM.md](DOCKER_PLATFORM.md) 참고
+
+자세한 내용은 [DEPLOY.md](DEPLOY.md), [DOCKERHUB.md](DOCKERHUB.md)를 참고하세요.
+
+## 💻 로컬 웹 실행 (개발용)
 프로젝트 루트에서:
 
 ```bash
