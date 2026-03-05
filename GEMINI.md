@@ -1,0 +1,83 @@
+# GEMINI.md - RescapeR 프로젝트 컨텍스트
+
+## 프로젝트 개요
+**RescapeR**는 "IT 회사 탈출"을 컨셉으로 한 2D 로그라이트 액션 플랫폼어 게임입니다. 플레이어는 지하 주차장(B6)에서 시작하여 대표이사실(9F)까지 올라가며 "업무 스트레스 괴물"들을 처치해야 합니다.
+
+이 저장소는 다음과 같은 **하이브리드 구조**를 가집니다:
+1.  **Playable Web (주력):** HTML5 Canvas와 Vanilla JavaScript로 구현된 전체 게임입니다. 현재 개발 및 배포의 핵심 타겟입니다.
+2.  **Unity Scaffold (참조):** 향후 Unity 이식이나 구조적 참조를 위한 C# 스크립트 및 데이터 모델입니다.
+
+### 핵심 기술 스택
+-   **Frontend:** HTML5 Canvas 2D, Vanilla JavaScript (ES6), CSS3.
+-   **PWA:** 오프라인 및 설치 지원을 위한 Service Worker (`sw.js`) 및 Web App Manifest.
+-   **Storage:** `LocalStorage`를 이용한 저장 데이터(`rescaperSave`), 메타데이터(`rescaperMeta`), 설정(`rescaperSettings`) 관리.
+-   **Deployment:** Docker (Nginx 기반), 멀티 아키텍처 빌드 지원 (AMD64, ARM64).
+
+---
+
+## 프로젝트 구조
+-   `playable-web/`: **실제 프로덕션 소스 코드.**
+    -   `game.js`: 핵심 게임 루프 및 초기화.
+    -   `systems/`: 모듈화된 게임 시스템 (전투, UI, 층 관리, 저장, 렌더링 등).
+    -   `assets/`: 스프라이트, 배경 및 자산 관련 문서.
+-   `Assets/Scripts/`: Unity/C# 스캐폴딩 (Core, Data, Gameplay, UI).
+-   `scripts/`: Docker 빌드 및 배포 자동화 스크립트.
+-   `docker/`: 웹 게임 서빙을 위한 Nginx 설정.
+-   `PRD.md`: 구현 및 배포 기준 문서 (최상위 운영 기준).
+-   `OVERVIEW.md`: 게임 컨셉, 층별 상세 정보 및 세계관.
+-   `AGENTS.md`: AI 에이전트를 위한 작업 규칙 및 가이드라인.
+
+---
+
+## 빌드 및 실행
+
+### 로컬 개발 (Web)
+Docker 없이 로컬에서 실행할 경우:
+```bash
+# 프로젝트 루트에서 실행
+python3 -m http.server 8000
+# 접속 주소: http://localhost:8000/playable-web/
+```
+
+### 로컬 개발 (Docker)
+```bash
+# 개발 모드로 빌드 및 실행
+./scripts/deploy.sh dev
+# 접속 주소: http://localhost:8080
+```
+
+### 검증 및 테스트
+커밋 전 다음 명령어를 통해 기본 체크를 수행하십시오:
+```bash
+# 구문 체크
+node --check playable-web/game.js
+
+# 스모크 테스트 실행
+./playable-web/smoke-check.sh
+```
+
+### 프로덕션 배포
+```bash
+# 멀티 아키텍처 빌드 (AMD64/ARM64)
+./scripts/build-multiarch.sh <버전> <dockerhub_사용자명>
+```
+
+---
+
+## 개발 규칙 (Conventions)
+
+### 일반 원칙
+-   **우선순위:** 모든 신규 기능 및 버그 수정은 `playable-web/`에 먼저 적용되어야 합니다.
+-   **운영 기준:** 기능 요구사항은 `PRD.md`를, 디자인 및 컨셉 상세는 `OVERVIEW.md`를 최우선으로 참고합니다.
+-   **언어:** 문서는 한국어를 중심으로 작성하며, 코드 주석은 기존 스타일(영어 또는 한국어)을 따릅니다.
+
+### 코딩 표준 (Web)
+-   **상태 관리:** 게임 런타임 데이터는 중앙 집중식 `state` 객체에서 관리합니다.
+-   **모듈화:** 로직은 `playable-web/systems/` 내의 적절한 모듈에 캡슐화해야 합니다.
+-   **물리 계산:** 프레임레이트에 독립적인 동작을 위해 항상 델타 타임(`dt`)을 사용하여 이동 및 전투를 계산합니다.
+-   **호환성:** 저장 시스템 수정 시 `LocalStorage` 스키마의 하위 호환성을 유지해야 합니다.
+-   **루트 오염 방지:** 실행 자산(`index.html`, `game.js` 등)을 프로젝트 루트에 추가하지 마십시오. 모든 실행 자산은 `playable-web/` 폴더 내에 위치해야 합니다.
+
+### AI 에이전트 상호작용
+-   `AGENTS.md`에 정의된 규칙을 엄격히 준수하십시오.
+-   변경 사항 제안 시 `PRD.md`에 명시된 로그라이트 루프와 일치하는지 확인하십시오.

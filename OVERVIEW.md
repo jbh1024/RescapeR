@@ -20,9 +20,12 @@
 
 - 실제 실행/배포: `playable-web/*`
 - 저장: LocalStorage
-: `rescaperMeta`, `rescaperSave`, `rescaperSettings`
-- 렌더링: HTML5 Canvas 2D
-- 런타임: `playable-web/game.js` 중심 + `playable-web/systems/*`
+  - `rescaperMeta`, `rescaperSave`, `rescaperSettings`
+- 렌더링: HTML5 Canvas 2D (**RenderSystem 모듈화**)
+- 아키텍처: **ES Modules (ESM) 기반 모듈화 구조**
+  - **Core 엔진 (`game.js`):** 메인 루프 및 전역 상태(State) 관리
+  - **데이터 설정 (`systems/data-config.js`):** 층 구성, 무기, 스탯 등 정적 데이터 분리
+  - **기능 시스템 (`systems/*`):** 렌더링, 전투, 오디오, FX, 저장, 자산 관리 등 기능별 독립 모듈
 
 랭킹 정렬 규칙:
 1. 총 클리어 횟수 높은 순

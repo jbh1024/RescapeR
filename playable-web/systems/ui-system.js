@@ -1,21 +1,18 @@
-(function attachUiSystem(global) {
-  function formatDuration(ms) {
+export const RescapeRUiSystem = {
+  formatDuration(ms) {
+    if (typeof ms !== "number" || isNaN(ms)) return "00:00";
     const totalSec = Math.floor(ms / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  },
 
-  function gradeByTime(ms) {
-    const minutes = ms / 60000;
-    if (minutes < 30) return "S (칼퇴의 신)";
-    if (minutes < 45) return "A (모범 사원)";
-    if (minutes < 60) return "B (성실 근무자)";
+  gradeByTime(ms) {
+    const sec = ms / 1000;
+    if (sec < 480) return "S+ (전설의 퇴근러)";
+    if (sec < 660) return "S (칼퇴의 달인)";
+    if (sec < 900) return "A (우수 사원)";
+    if (sec < 1200) return "B (평범한 직장인)";
     return "C (야근 확정)";
   }
-
-  global.RescapeRUiSystem = {
-    formatDuration,
-    gradeByTime,
-  };
-})(window);
+};

@@ -1,0 +1,88 @@
+import { RescapeRConfig as Config } from './data-config.js';
+
+export const RescapeRPlayerSystem = {
+  createBasePlayer(meta) {
+    const p = {
+      x: 90, y: 0, w: 36, h: 60, vx: 0, vy: 0, facing: 1, onGround: false,
+      hp: 120, maxHp: 120 + (meta.maxHpBonus || 0),
+      baseSpeed: 4.5, speedMul: 1 + (meta.speedBonus || 0),
+      baseDamage: 18, damageMul: 1 + (meta.damageBonus || 0),
+      attackTimer: 0, attackCd: 260, dashTimer: 0, dashCd: 950, invuln: 0,
+      level: 1, xp: 0, needXp: 45, gold: 0, inventory: ["회복키트", "빈 슬롯"],
+      skillIds: [], weapon: null, styleId: "striker", walkAnim: 0, attackSwing: 0,
+      lifeStealOnKill: 0, critChance: 0, critDamageMul: 1.5, damageTakenMul: 1,
+      regenPerSec: 0, skillReachBonus: 0, executeThreshold: 0, executeDamageMul: 0,
+      invuln: 0, dashCdMul: 1, attackCdMul: 1
+    };
+    p.hp = p.maxHp;
+    return p;
+  },
+
+  applyCombatStyle(p, styleId) {
+    const style = Config.CHARACTER_STYLES[styleId] || Config.CHARACTER_STYLES.striker;
+    p.styleId = styleId;
+    p.styleName = style.name;
+    p.styleDesc = style.desc;
+    p.styleAttackTint = style.attackTint;
+    p.styleArmorMul = style.armorMul;
+    p.styleDodgeChance = style.dodgeChance;
+    
+    p.speedMul *= style.speedMul;
+    p.damageMul *= style.damageMul;
+    p.attackCdMul *= style.attackCdMul;
+    p.dashCdMul *= style.dashCdMul;
+    p.maxHp += style.hpBonus;
+    p.hp = p.maxHp;
+  },
+
+  updatePhysics(p, dt, keys, platforms, groundY, worldWidth) {
+    const dtSec = dt * 0.001;
+    let move = 0;
+    if (keys["ArrowLeft"]) move--;
+    if (keys["ArrowRight"]) move++;
+    if (move !== 0) {
+      p.facing = move;
+      p.walkAnim += dtSec * 10;
+    } else {
+      p.walkAnim = 0;
+    }
+
+    p.vx = move * p.baseSpeed * p.speedMul * 60;
+    
+    // 점프
+    if ((keys["ArrowUp"] || keys["w"] || keys["W"]) && p.onGround) {
+      p.vy = -750;
+      p.onGround = false;
+    }
+
+    // 중력 및 마찰
+    p.vy += 2100 * dtSec;
+    p.x += p.vx * dtSec;
+    p.y += p.vy * dtSec;
+
+    // 플랫폼 충돌
+    p.onGround = false;
+    for (const plat of platforms) {
+      if (p.vy >= 0 && p.x + p.w > plat.x && p.x < plat.x + plat.w &&
+          p.y + p.h >= plat.y && p.y + p.h <= plat.y + 15) {
+        p.y = plat.y - p.h;
+        p.vy = 0;
+        p.onGround = true;
+      }
+    }
+    
+    // 경계 처리
+    p.x = Math.max(0, Math.min(worldWidth - p.w, p.x));
+    if (p.y > groundY - p.h) {
+      p.y = groundY - p.h;
+      p.vy = 0;
+      p.onGround = true;
+    }
+
+    // 타이머 업데이트
+    p.attackTimer = Math.max(0, p.attackTimer - dt);
+    p.dashTimer = Math.max(0, p.dashTimer - dt);
+    p.invuln = Math.max(0, p.invuln - dt);
+    if (p.attackSwing > 0) p.attackSwing = Math.max(0, p.attackSwing - dt * 1.5);
+  }
+};

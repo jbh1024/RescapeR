@@ -2,8 +2,8 @@
 
 | 항목 | 값 |
 |---|---|
-| 문서 버전 | v5.1 |
-| 기준일 | 2026-02-26 |
+| 문서 버전 | v5.2 (Architecture Refactored) |
+| 기준일 | 2026-03-05 |
 | 프로젝트명 | RescapeR |
 | 장르 | 2D Roguelite Action Platformer |
 
@@ -26,6 +26,12 @@
 2. 동률 시 클리어 시간(오름차순)
 
 ## 4. Web 제품 기준
+- 아키텍처 및 모듈화:
+  - **ES Modules (import/export)** 도입을 통한 의존성 관리 최적화
+  - 모든 시스템 로직은 `playable-web/systems/` 내 독립 모듈로 캡슐화
+  - 중앙 집중식 상태 관리(`state` 객체) 및 시스템별 주입 방식 사용
+- 자산 관리:
+  - `AssetManager` 모듈을 통한 비동기 자산 로딩 및 중앙 관리
 - 저장/복구:
   - LocalStorage 자동 저장(`rescaperSave`)
   - 메타(`rescaperMeta`), 설정(`rescaperSettings`) 분리

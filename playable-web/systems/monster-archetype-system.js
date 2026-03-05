@@ -1,65 +1,73 @@
-(function attachMonsterArchetypeSystem(global) {
-  function resolveNameArchetype(name = "") {
-    if (!name) return "base";
-    const droneKeywords = ["드론", "로봇", "봇", "스캐너", "게이트", "차단기"];
-    const watcherKeywords = ["비홀더", "CCTV", "스피커", "감시", "파수견", "로그"];
-    const casterKeywords = ["정령", "요정", "주술", "잔향", "메아리"];
-    const wispKeywords = ["유령", "망령", "잔상", "환영", "폴터가이스트"];
-    const beastKeywords = ["거미", "히드라", "박쥐", "사냥개"];
-    const crawlerKeywords = ["포식자", "거머리", "케이블", "덩굴", "떼"];
-    const bulkyKeywords = ["골렘", "미믹", "병사", "파수", "집행관", "방패", "수금"];
-    const glitchKeywords = ["404", "Null", "예외", "리그레션", "글리치"];
-    const agentKeywords = ["암살자", "심사관", "검열관", "평가", "도장", "몰수자"];
-    if (droneKeywords.some((k) => name.includes(k))) return "drone";
-    if (watcherKeywords.some((k) => name.includes(k))) return "watcher";
-    if (casterKeywords.some((k) => name.includes(k))) return "caster";
-    if (wispKeywords.some((k) => name.includes(k))) return "wisp";
-    if (beastKeywords.some((k) => name.includes(k))) return "beast";
-    if (crawlerKeywords.some((k) => name.includes(k))) return "crawler";
-    if (bulkyKeywords.some((k) => name.includes(k))) return "bulky";
-    if (glitchKeywords.some((k) => name.includes(k))) return "glitcher";
-    if (agentKeywords.some((k) => name.includes(k))) return "agent";
-    return "base";
-  }
+const MOB_ARCHETYPES = {
+  parking: {
+    "세단 미믹": { hp: 42, speed: 1.8, damage: 12, behavior: "chase" },
+    "매연 유령": { hp: 34, speed: 2.2, damage: 10, behavior: "kite" },
+    "불법주차 골렘": { hp: 68, speed: 1.2, damage: 18, behavior: "flank" },
+  },
+  cafeteria: {
+    "식판 병사": { hp: 48, speed: 2.0, damage: 14, behavior: "chase" },
+    "식권 수금봇": { hp: 40, speed: 2.4, damage: 12, behavior: "kite" },
+    "국밥 연기 요정": { hp: 36, speed: 2.6, damage: 11, behavior: "flank" },
+  },
+  lobby: {
+    "CCTV 비홀더": { hp: 52, speed: 1.9, damage: 15, behavior: "kite" },
+    "출입게이트 파수견": { hp: 60, speed: 2.3, damage: 16, behavior: "chase" },
+    "QR 인증 파수병": { hp: 56, speed: 2.1, damage: 14, behavior: "flank" },
+  },
+  showroom: {
+    "마네킹 예스맨": { hp: 64, speed: 2.2, damage: 17, behavior: "chase" },
+    "레이저 포인터령": { hp: 50, speed: 2.8, damage: 15, behavior: "kite" },
+    "유리벽 스토커": { hp: 58, speed: 2.4, damage: 16, behavior: "flank" },
+  },
+  mobile: {
+    "터치 제스처": { hp: 62, speed: 2.6, damage: 18, behavior: "chase" },
+    "푸시 알림 떼": { hp: 48, speed: 3.2, damage: 14, behavior: "kite" },
+    "랜덤박스 임프": { hp: 70, speed: 2.0, damage: 20, behavior: "flank" },
+  },
+  server: {
+    "버그 떼": { hp: 68, speed: 2.8, damage: 19, behavior: "chase" },
+    "패킷 거머리": { hp: 54, speed: 3.4, damage: 16, behavior: "kite" },
+    "스택트레이스 망령": { hp: 76, speed: 2.2, damage: 22, behavior: "flank" },
+  },
+  glitch: {
+    "도플갱어": { hp: 80, speed: 2.5, damage: 21, behavior: "chase" },
+    "404 잔상": { hp: 60, speed: 3.6, damage: 18, behavior: "kite" },
+    "Null 포식자": { hp: 88, speed: 2.1, damage: 24, behavior: "flank" },
+  },
+  marketing: {
+    "팝업창 방패병": { hp: 94, speed: 2.3, damage: 23, behavior: "chase" },
+    "클릭베이트 박쥐": { hp: 66, speed: 3.8, damage: 20, behavior: "kite" },
+    "바이럴 스피커": { hp: 82, speed: 2.7, damage: 22, behavior: "flank" },
+  },
+  support: {
+    "콜센터 히드라": { hp: 105, speed: 2.4, damage: 26, behavior: "chase" },
+    "대기열 포식자": { hp: 78, speed: 4.0, damage: 22, behavior: "kite" },
+    "실적 스캐너": { hp: 96, speed: 2.8, damage: 25, behavior: "flank" },
+  },
+  executive: {
+    "인사팀 암살자": { hp: 120, speed: 2.8, damage: 30, behavior: "chase" },
+    "결재 도장 골렘": { hp: 150, speed: 2.2, damage: 35, behavior: "flank" },
+    "리스크 심사관": { hp: 110, speed: 3.2, damage: 28, behavior: "kite" },
+  },
+};
 
-  function zonePlan(zone) {
-    const plan = {
-      parking: ["bulky", "drone", "watcher"],
-      cafeteria: ["bulky", "caster", "wisp"],
-      lobby: ["watcher", "drone", "agent"],
-      showroom: ["watcher", "caster", "agent"],
-      mobile: ["drone", "caster", "wisp"],
-      server: ["drone", "crawler", "watcher"],
-      glitch: ["glitcher", "wisp", "agent"],
-      marketing: ["caster", "watcher", "wisp"],
-      support: ["bulky", "crawler", "drone"],
-      executive: ["agent", "watcher", "bulky"],
+export const RescapeRMonsterArchetypeSystem = {
+  pickArchetype(zone, mobName, index, rand) {
+    const zonePool = MOB_ARCHETYPES[zone] || MOB_ARCHETYPES.parking;
+    const base = zonePool[mobName] || { hp: 40, speed: 2, damage: 10, behavior: "chase" };
+    
+    // 층수에 따른 스탯 보정
+    const scale = 1 + index * 0.15;
+    return {
+      ...base,
+      hp: Math.round(base.hp * scale),
+      maxHp: Math.round(base.hp * scale),
+      damage: Math.round(base.damage * (1 + index * 0.1)),
+      xp: Math.round(15 * scale),
     };
-    return plan[zone] || ["bulky", "watcher", "wisp"];
+  },
+
+  zonePlan(zone) {
+    return MOB_ARCHETYPES[zone] || MOB_ARCHETYPES.parking;
   }
-
-  function pickArchetype(zone, mobName, index, rand) {
-    if (zone === "parking") {
-      if (mobName.includes("세단")) return "drone";
-      if (mobName.includes("매연")) return "wisp";
-      if (mobName.includes("불법주차")) return "bulky";
-      if (mobName.includes("후진 알람")) return "caster";
-      if (mobName.includes("주차딱지")) return "agent";
-      if (mobName.includes("차단기")) return "glitcher";
-    }
-
-    const planned = zonePlan(zone);
-    let archetype = planned[index % planned.length];
-    const byName = resolveNameArchetype(mobName);
-    if (byName !== "base" && rand() < 0.24) {
-      archetype = byName;
-    }
-    return archetype;
-  }
-
-  global.RescapeRMonsterArchetypeSystem = {
-    resolveNameArchetype,
-    zonePlan,
-    pickArchetype,
-  };
-})(window);
+};

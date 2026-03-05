@@ -1,184 +1,88 @@
-(function attachFloorSystem(global) {
-  function floorDifficultyCurve(index) {
-    const t = index + 1;
-    const ramp = 1 + Math.pow(t / 14, 1.35) * 1.75;
-    return {
-      mobHp: Math.round(22 + ramp * 7.5),
-      mobDamage: Math.round(6 + ramp * 2.1),
-      mobSpeedBase: 1.05 + t * 0.05,
-      bossHpMul: 0.88 + ramp * 0.66,
-      bossDamageMul: 0.9 + ramp * 0.24,
-      skillCdMul: Math.max(0.74, 1.08 - t * 0.02),
-    };
-  }
+export const RescapeRFloorSystem = {
+  floorDifficultyCurve(index) {
+    return 1 + index * 0.12;
+  },
 
-  function mobBehaviorForZone(zone, i) {
-    const table = {
-      parking: ["rush", "rush", "flank"],
-      cafeteria: ["rush", "kite", "flank"],
-      lobby: ["kite", "rush", "kite"],
-      showroom: ["kite", "flank", "rush"],
-      mobile: ["flank", "kite", "rush"],
-      server: ["kite", "kite", "flank"],
-      glitch: ["flank", "rush", "kite"],
-      marketing: ["kite", "flank", "kite"],
-      support: ["rush", "flank", "kite"],
-      executive: ["flank", "kite", "rush"],
-    };
-    const arr = table[zone] || ["rush", "flank", "kite"];
-    return arr[i % arr.length];
-  }
+  mobBehaviorForZone(zone, i) {
+    const behaviors = ["chase", "kite", "flank"];
+    return behaviors[i % behaviors.length];
+  },
 
-  function buildFloor({
-    index,
-    info,
-    rand,
-    profile,
-    worldWidth,
-    groundY,
-    pickMobArchetype,
-    randomItemKey,
-    executiveMiniBosses,
-  }) {
-    const curve = floorDifficultyCurve(index);
-    const platforms = [{ x: 0, y: groundY, w: worldWidth, h: 80 }];
+  buildFloor(opts) {
+    const {
+      index, info, rand, profile,
+      worldWidth, groundY,
+      pickMobArchetype, randomItemKey,
+      executiveMiniBosses
+    } = opts;
+
+    const platforms = [
+      { x: 0, y: groundY, w: worldWidth, h: 100 } // 기본 바닥
+    ];
+
+    // 무작위 공중 플랫폼 생성
+    const platCount = 4 + Math.floor(rand() * 5);
+    for (let i = 0; i < platCount; i++) {
+      platforms.push({
+        x: 200 + rand() * (worldWidth - 600),
+        y: groundY - 120 - rand() * 200,
+        w: 150 + rand() * 200,
+        h: 24
+      });
+    }
+
     const enemies = [];
-    const pickups = [];
-
-    for (let i = 0; i < 14; i++) {
-      const w = 170 + rand() * 180;
-      const x = 180 + rand() * (worldWidth - 500);
-      const y = 160 + rand() * (groundY - 210);
-      platforms.push({ x, y, w, h: 20 });
-    }
-
-    const difficulty = index + 1;
-    const hasBoss = Boolean(info.boss);
-    const normalCount = info.safeZone ? 0 : (hasBoss
-      ? 2 + Math.floor(rand() * 2) + Math.floor(difficulty / 5)
-      : 5 + Math.floor(rand() * 3) + Math.floor(difficulty / 4));
-
-    for (let i = 0; i < normalCount; i++) {
-      const mobHp = curve.mobHp + Math.round(rand() * 10);
-      const mobName = profile.mobNames[Math.floor(rand() * profile.mobNames.length)] || "업무 스트레스체";
+    const mobCount = info.safeZone ? 0 : (3 + Math.floor(index * 0.8));
+    
+    for (let i = 0; i < mobCount; i++) {
+      const mobName = profile.mobNames[Math.floor(rand() * profile.mobNames.length)];
+      const arch = pickMobArchetype(info.zone, mobName, index, rand);
       enemies.push({
-        x: 350 + rand() * (worldWidth - 650),
-        y: groundY - 44,
-        w: 32,
-        h: 44,
-        hp: mobHp,
-        maxHp: mobHp,
-        damage: curve.mobDamage + Math.floor(rand() * 2),
-        speed: curve.mobSpeedBase + rand() * 1.1,
-        dir: rand() < 0.5 ? -1 : 1,
-        type: "mob",
+        ...arch,
         name: mobName,
-        archetype: pickMobArchetype(info.zone, mobName, i, rand),
-        zone: info.zone,
-        variant: Math.floor(rand() * 3),
-        xp: 16 + difficulty * 2,
-        hitFlash: 0,
-        slowTimer: 0,
-        dotTimer: 0,
-        dotTick: 0,
-        dotDamage: 0,
-        stunTimer: 0,
-        skillCd: Math.round(1800 * curve.skillCdMul),
-        skillTimer: 880 + rand() * 820,
-        walkAnim: rand() * 10,
-        behavior: mobBehaviorForZone(info.zone, i),
-        aiCooldown: 500 + rand() * 700,
-        defeated: false,
-      });
-    }
-
-    if (hasBoss && !info.safeZone) {
-      const bossBaseHp = info.finalBoss ? 620 : 280;
-      const bossBaseDamage = info.finalBoss ? 34 : 18;
-      enemies.push({
-        x: worldWidth - 320,
-        y: groundY - 84,
-        w: 64,
-        h: 84,
-        hp: Math.round((bossBaseHp + difficulty * 9) * curve.bossHpMul),
-        maxHp: Math.round((bossBaseHp + difficulty * 9) * curve.bossHpMul),
-        damage: Math.round(bossBaseDamage * curve.bossDamageMul),
-        speed: (info.finalBoss ? 2.1 : 1.4) + difficulty * 0.03,
+        type: "mob",
+        x: 600 + rand() * (worldWidth - 800),
+        y: groundY - 60,
+        w: 32,
+        h: 48,
         dir: -1,
-        type: "boss",
-        name: info.boss,
-        zone: info.zone,
-        variant: Math.floor(rand() * 3),
-        xp: info.finalBoss ? 220 : 120,
+        walkAnim: rand() * Math.PI,
         hitFlash: 0,
-        slowTimer: 0,
-        dotTimer: 0,
-        dotTick: 0,
-        dotDamage: 0,
         stunTimer: 0,
-        skillCd: Math.round((info.finalBoss ? 1300 : 1850) * curve.skillCdMul),
-        skillTimer: 900 + rand() * 900,
-        walkAnim: rand() * 10,
-        phaseIndex: 1,
-        defeated: false,
+        slowTimer: 0,
+        variant: Math.floor(rand() * 3),
+        zone: info.zone
       });
     }
 
-    if (info.finalBoss) {
-      const executivePool = [...executiveMiniBosses];
-      for (let i = 0; i < 2; i++) {
-        const pickIndex = Math.floor(rand() * executivePool.length);
-        const execName = executivePool.splice(pickIndex, 1)[0];
-        enemies.push({
-          x: worldWidth - 900 + i * 220,
-          y: groundY - 72,
-          w: 54,
-          h: 72,
-          hp: Math.round((240 + difficulty * 9) * (curve.bossHpMul * 0.88)),
-          maxHp: Math.round((240 + difficulty * 9) * (curve.bossHpMul * 0.88)),
-          damage: Math.round(18 * curve.bossDamageMul),
-          speed: 1.55 + difficulty * 0.03,
-          dir: -1,
-          type: "exec",
-          name: execName,
-          zone: info.zone,
-          variant: Math.floor(rand() * 3),
-          xp: 95,
-          hitFlash: 0,
-          slowTimer: 0,
-          dotTimer: 0,
-          dotTick: 0,
-          dotDamage: 0,
-          stunTimer: 0,
-          skillCd: Math.round((1600 + rand() * 500) * curve.skillCdMul),
-          skillTimer: 780 + rand() * 700,
-          walkAnim: rand() * 10,
-          phaseIndex: 1,
-          defeated: false,
-        });
-      }
-    }
-
-    if (!info.safeZone && rand() < 0.85) {
-      const key = randomItemKey(rand);
-      pickups.push({
-        x: 400 + rand() * (worldWidth - 800),
-        y: groundY - 28,
-        w: 24,
-        h: 24,
-        type: "artifact",
-        key,
+    // 엘리트 적 (보스/임원)
+    if (info.boss && !info.safeZone) {
+      enemies.push({
+        name: info.boss,
+        type: info.finalBoss ? "boss" : "exec",
+        hp: 400 + index * 150,
+        maxHp: 400 + index * 150,
+        speed: 1.5,
+        damage: 25 + index * 5,
+        xp: 200 + index * 50,
+        x: worldWidth - 400,
+        y: groundY - 80,
+        w: 64,
+        h: 80,
+        dir: -1,
+        walkAnim: 0,
+        hitFlash: 0,
+        stunTimer: 0,
+        slowTimer: 0,
+        zone: info.zone
       });
     }
 
-    if (rand() < (info.safeZone ? 1 : 0.65)) {
+    const pickups = [];
+    if (info.safeZone) {
       pickups.push({
-        x: 300 + rand() * (worldWidth - 600),
-        y: groundY - 24,
-        w: 20,
-        h: 20,
-        type: "heal",
-        heal: 28,
+        x: 400, y: groundY - 30, w: 24, h: 24,
+        type: "heal", heal: 50
       });
     }
 
@@ -187,15 +91,9 @@
       platforms,
       enemies,
       pickups,
+      gate: { x: worldWidth - 150, y: groundY - 120, w: 80, h: 120 },
       gateOpen: info.safeZone,
-      gate: { x: worldWidth - 150, y: groundY - 86, w: 42, h: 86 },
-      shop: info.safeZone ? { x: 220, y: groundY - 90, w: 58, h: 90 } : null,
+      shop: info.safeZone ? { x: 600, y: groundY - 100, w: 100, h: 100 } : null
     };
   }
-
-  global.RescapeRFloorSystem = {
-    floorDifficultyCurve,
-    mobBehaviorForZone,
-    buildFloor,
-  };
-})(window);
+};
