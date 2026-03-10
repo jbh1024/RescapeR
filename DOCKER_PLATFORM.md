@@ -23,7 +23,7 @@ exec /docker-entrypoint.sh: exec format error
 
 ```bash
 # 멀티 아키텍처 빌드 스크립트 실행
-./scripts/build-multiarch.sh v1.0.7 yourusername
+./scripts/build-multiarch.sh v1.1.0 yourusername
 ```
 
 **지원 플랫폼:**
@@ -52,10 +52,10 @@ docker run -d -p 80:80 rescaper:latest
 
 ```bash
 # AMD64 전용으로 빌드
-./scripts/build-specific-platform.sh v1.0.7 linux/amd64 yourusername
+./scripts/build-specific-platform.sh v1.1.0 linux/amd64 yourusername
 
 # ARM64 전용으로 빌드  
-./scripts/build-specific-platform.sh v1.0.7 linux/arm64 yourusername
+./scripts/build-specific-platform.sh v1.1.0 linux/arm64 yourusername
 ```
 
 ---

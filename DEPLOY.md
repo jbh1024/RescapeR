@@ -57,18 +57,18 @@ docker build -t rescaper:latest .
 
 ### 특정 태그로 빌드
 ```bash
-./scripts/build-docker.sh v1.0.7
+./scripts/build-docker.sh v1.1.0
 ```
 
 ### 레지스트리 푸시 (Docker Hub, AWS ECR 등)
 ```bash
 # Docker Hub 예시
-./scripts/build-docker.sh v1.0.7 yourusername
+./scripts/build-docker.sh v1.1.0 yourusername
 
 # 또는 수동으로
-docker build -t rescaper:v1.0.7 .
-docker tag rescaper:v1.0.7 yourusername/rescaper:v1.0.7
-docker push yourusername/rescaper:v1.0.7
+docker build -t rescaper:v1.1.0 .
+docker tag rescaper:v1.1.0 yourusername/rescaper:v1.1.0
+docker push yourusername/rescaper:v1.1.0
 ```
 
 ## ⚙️ 환경 설정

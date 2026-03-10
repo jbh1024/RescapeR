@@ -79,16 +79,16 @@ const FLOOR_PLAN = [
 ];
 
 const THEMES = {
-  parking: { bg: ["#1f2b36", "#0f151f"], wall: "#2c3e50", floor: "#1f2937", accent: "#4a627a" },
-  cafeteria: { bg: ["#4a2d12", "#24160a"], wall: "#e67e22", floor: "#6a3a14", accent: "#ffb266" },
-  lobby: { bg: ["#bdc3c7", "#6c757d"], wall: "#ecf0f1", floor: "#8f9ca7", accent: "#ffffff" },
-  showroom: { bg: ["#1abc9c", "#0c6a59"], wall: "#67dac7", floor: "#12947f", accent: "#d6fff7" },
-  mobile: { bg: ["#9b59b6", "#4b2a59"], wall: "#c184db", floor: "#6f3f83", accent: "#f0cfff" },
-  server: { bg: ["#2ecc71", "#12683b"], wall: "#78e6a6", floor: "#1d9152", accent: "#e5ffef" },
-  glitch: { bg: ["#e74c3c", "#7b1f16"], wall: "#ff8f84", floor: "#b5372a", accent: "#ffe4e1" },
-  marketing: { bg: ["#f1c40f", "#7f6608"], wall: "#ffe27a", floor: "#ba980d", accent: "#fff7d1" },
-  support: { bg: ["#d35400", "#6b2800"], wall: "#ee8d4d", floor: "#a74200", accent: "#ffd8bf" },
-  executive: { bg: ["#8e44ad", "#3f1f4d"], wall: "#b786ca", floor: "#6c3383", accent: "#f2d9ff" },
+  parking: { bg: ["#1f2b36", "#0f151f"], bgImg: "mergedDark", wall: "#2c3e50", floor: "#1f2937", accent: "#4a627a" },
+  cafeteria: { bg: ["#4a2d12", "#24160a"], bgImg: "trees02", wall: "#e67e22", floor: "#6a3a14", accent: "#ffb266" },
+  lobby: { bg: ["#bdc3c7", "#6c757d"], bgImg: "mountains", wall: "#ecf0f1", floor: "#8f9ca7", accent: "#ffffff" },
+  showroom: { bg: ["#1abc9c", "#0c6a59"], bgImg: "sky", wall: "#67dac7", floor: "#12947f", accent: "#d6fff7" },
+  mobile: { bg: ["#9b59b6", "#4b2a59"], bgImg: "trees01", wall: "#c184db", floor: "#6f3f83", accent: "#f0cfff" },
+  server: { bg: ["#2ecc71", "#12683b"], bgImg: "mergedDark", wall: "#78e6a6", floor: "#1d9152", accent: "#e5ffef" },
+  glitch: { bg: ["#e74c3c", "#7b1f16"], bgImg: "mergedDark", wall: "#ff8f84", floor: "#b5372a", accent: "#ffe4e1" },
+  marketing: { bg: ["#f1c40f", "#7f6608"], bgImg: "sky", wall: "#ffe27a", floor: "#ba980d", accent: "#fff7d1" },
+  support: { bg: ["#d35400", "#6b2800"], bgImg: "trees02", wall: "#ee8d4d", floor: "#a74200", accent: "#ffd8bf" },
+  executive: { bg: ["#8e44ad", "#3f1f4d"], bgImg: "mountains", wall: "#b786ca", floor: "#6c3383", accent: "#f2d9ff" },
 };
 
 const ELEVATOR_QUOTES = [

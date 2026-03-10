@@ -65,10 +65,13 @@ export const RescapeRCombatSystem = {
     const p = state.player;
     if (p.invuln > 0) return;
     
-    p.hp -= amount;
+    const finalDmg = Math.round(amount);
+    p.hp -= finalDmg;
     p.invuln = 500;
+    
     FxSystem.addShake(state, 4);
     FxSystem.addScreenFx(state, "damage");
+    FxSystem.spawnDamageText(state, p.x + p.w / 2, p.y - 20, finalDmg, "#ff5555", false);
     AudioSystem.playSfx(state, "boss");
     
     if (p.hp <= 0) {

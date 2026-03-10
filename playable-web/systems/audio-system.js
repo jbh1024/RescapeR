@@ -42,6 +42,7 @@ export const RescapeRAudioSystem = {
       server: { type: "square", base: 300, rise: 1.3, dur: 0.12, amp: 0.6 },
       glitch: { type: "triangle", base: 140, rise: 2.7, dur: 0.12, amp: 0.72 },
       executive: { type: "sawtooth", base: 95, rise: 1.55, dur: 0.21, amp: 0.95 },
+      pickup: { type: "triangle", base: 660, rise: 1.2, dur: 0.08, amp: 0.65 }, // 획득 사운드 추가
     };
 
     const p = profiles[kind] || profiles.hit;

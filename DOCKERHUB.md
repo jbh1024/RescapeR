@@ -16,10 +16,10 @@ RescapeR 이미지를 Docker Hub에 배포하는 방법입니다.
 ./scripts/deploy-dockerhub.sh
 
 # 특정 버전 태그로 배포
-./scripts/deploy-dockerhub.sh v1.0.7
+./scripts/deploy-dockerhub.sh v1.1.0
 
 # 사용자명 직접 지정
-./scripts/deploy-dockerhub.sh v1.0.7 yourusername
+./scripts/deploy-dockerhub.sh v1.1.0 yourusername
 ```
 
 ### 방법 2: 수동 배포
@@ -29,14 +29,14 @@ RescapeR 이미지를 Docker Hub에 배포하는 방법입니다.
 docker login
 
 # 2. 이미지 빌드
-docker build -t rescaper:v1.0.7 .
+docker build -t rescaper:v1.1.0 .
 
 # 3. 태그 설정 (yourusername을 본인 계정으로 변경)
-docker tag rescaper:v1.0.7 yourusername/rescaper:v1.0.7
-docker tag rescaper:v1.0.7 yourusername/rescaper:latest
+docker tag rescaper:v1.1.0 yourusername/rescaper:v1.1.0
+docker tag rescaper:v1.1.0 yourusername/rescaper:latest
 
 # 4. 푸시
-docker push yourusername/rescaper:v1.0.7
+docker push yourusername/rescaper:v1.1.0
 docker push yourusername/rescaper:latest
 ```
 
@@ -125,10 +125,10 @@ jobs:
 
 ```bash
 # 버전 태그 생성
-git tag v1.0.7
+git tag v1.1.0
 
 # 태그 푸시 (자동 배포 트리거)
-git push origin v1.0.7
+git push origin v1.1.0
 ```
 
 ## 🏷️ 버전 관리 전략
@@ -138,7 +138,7 @@ git push origin v1.0.7
 | 태그 | 용도 | 예시 |
 |------|------|------|
 | `latest` | 최신 안정 버전 | 항상 최신 릴리스 |
-| `v1.0.7` | 특정 버전 | semantic versioning |
+| `v1.1.0` | 특정 버전 | semantic versioning |
 | `v1.0` | 메이저.마이너 | 호환성 유지 버전 |
 | `dev` | 개발 중 | 최신 개발 빌드 |
 

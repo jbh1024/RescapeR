@@ -9,13 +9,29 @@ export const RescapeRPlayerSystem = {
       baseDamage: 18, damageMul: 1 + (meta.damageBonus || 0),
       attackTimer: 0, attackCd: 260, dashTimer: 0, dashCd: 950, invuln: 0,
       level: 1, xp: 0, needXp: 45, gold: 0, inventory: ["회복키트", "빈 슬롯"],
-      skillIds: [], weapon: null, styleId: "striker", walkAnim: 0, attackSwing: 0,
+      skillIds: [], skillNames: [], artifacts: [], codename: "", weapon: null, styleId: "striker", walkAnim: 0, attackSwing: 0,
       lifeStealOnKill: 0, critChance: 0, critDamageMul: 1.5, damageTakenMul: 1,
-      regenPerSec: 0, skillReachBonus: 0, executeThreshold: 0, executeDamageMul: 0,
+      regenPerSec: 0, regenTimer: 0, skillReachBonus: 0, executeThreshold: 0, executeDamageMul: 0,
       invuln: 0, dashCdMul: 1, attackCdMul: 1
     };
     p.hp = p.maxHp;
+    // 기본 무기 장착
+    this.equipWeapon(p, Config.WEAPON_CATALOG[0]);
     return p;
+  },
+
+  equipWeapon(p, weapon) {
+    // 이전 무기 효과 제거 (현재는 단순화하여 무기 객체만 교체하고 배율을 직접 조정)
+    // 실제로는 baseDamageMul 등을 두고 관리하는 것이 좋으나 기존 구조를 존중하여
+    // 무기 교체 시 기존 무기 배율을 나누고 새 무기 배율을 곱하는 식으로 처리
+    if (p.weapon) {
+      p.damageMul /= p.weapon.attackMul;
+      p.attackCdMul /= p.weapon.attackCdMul;
+    }
+    
+    p.weapon = weapon;
+    p.damageMul *= weapon.attackMul;
+    p.attackCdMul *= weapon.attackCdMul;
   },
 
   applyCombatStyle(p, styleId) {
@@ -47,7 +63,12 @@ export const RescapeRPlayerSystem = {
       p.walkAnim = 0;
     }
 
-    p.vx = move * p.baseSpeed * p.speedMul * 60;
+    const isDashing = p.dashTimer > (p.dashCd * (p.dashCdMul || 1)) - 200;
+    if (isDashing) {
+      p.vx = p.facing * p.baseSpeed * p.speedMul * 60 * 3.5;
+    } else {
+      p.vx = move * p.baseSpeed * p.speedMul * 60;
+    }
     
     // 점프
     if ((keys["ArrowUp"] || keys["w"] || keys["W"]) && p.onGround) {
@@ -84,5 +105,14 @@ export const RescapeRPlayerSystem = {
     p.dashTimer = Math.max(0, p.dashTimer - dt);
     p.invuln = Math.max(0, p.invuln - dt);
     if (p.attackSwing > 0) p.attackSwing = Math.max(0, p.attackSwing - dt * 1.5);
+
+    // 체력 재생 로직
+    if (p.regenPerSec > 0 && p.hp < p.maxHp) {
+      p.regenTimer += dt;
+      if (p.regenTimer >= 1000) {
+        p.hp = Math.min(p.maxHp, p.hp + p.regenPerSec);
+        p.regenTimer -= 1000;
+      }
+    }
   }
 };

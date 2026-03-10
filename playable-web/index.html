@@ -12,30 +12,19 @@
   </head>
   <body>
     <main class="layout">
-      <section class="hud">
-        <h1>RescapeR</h1>
-        <p class="subtitle">IT 회사 탈출 로그바니아 프로토타입</p>
-        <div id="stats" class="panel hidden"></div>
-        <div id="controls" class="panel hidden">
-          <h2>조작법</h2>
-          <p>이동: ← / →</p>
-          <p>점프: ↑</p>
-          <p>공격: Space</p>
-          <p>대시: Shift</p>
-          <p>소비 슬롯 사용: Q</p>
-          <p>전투 스타일 변경(B1): C</p>
-          <p>사운드 볼륨: - / =</p>
-          <p>음소거: M / 이펙트 간소화: V</p>
-          <p>일시정지: P</p>
-          <p>상호작용/상점 열기: E</p>
-          <p>상점 구매: 1 / 2 / 3 (종료: ESC)</p>
-          <p>재시작: R</p>
-          <p>조작법/로그 토글: H</p>
-        </div>
-        <div id="log" class="panel log hidden"></div>
-      </section>
       <section class="game-area">
         <canvas id="game" width="1600" height="900"></canvas>
+      </section>
+      
+      <section class="hud">
+        <div id="log" class="panel log"></div>
+        <div id="controls" class="panel">
+          <h2>조작법</h2>
+          <p>이동: ← / → | 점프: ↑ | 공격: Space | 대시: Shift</p>
+          <p>상호작용/다음 층: E | 일시정지: P | 패널 토글: H</p>
+          <p>재시작: R | 사운드: M, V, -, =</p>
+        </div>
+        <div id="stats" class="panel" style="display:none;"></div>
       </section>
     </main>
 

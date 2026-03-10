@@ -97,11 +97,19 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  order: 1;
 }
 
 .hud {
-  order: 2;
+  display: none;
+  gap: 16px;
+  width: min(100%, 1600px);
+  margin: 0 auto;
+}
+
+.layout.show-panels .hud {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding-top: 12px;
 }
 
 canvas {
