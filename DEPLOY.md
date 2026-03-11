@@ -29,14 +29,14 @@ python3 -m http.server 8000
 ./scripts/deploy-dockerhub.sh
 
 # 특정 버전 태그로 배포 (사용자명 명시)
-./scripts/deploy-dockerhub.sh v1.1.0 yourusername
+./scripts/deploy-dockerhub.sh v1.1.1 yourusername
 ```
 
 ### **수동 배포 절차**
 1. `docker login`
-2. `docker build -t rescaper:v1.1.0 .`
-3. `docker tag rescaper:v1.1.0 yourusername/rescaper:v1.1.0`
-4. `docker push yourusername/rescaper:v1.1.0`
+2. `docker build -t rescaper:v1.1.1 .`
+3. `docker tag rescaper:v1.1.1 yourusername/rescaper:v1.1.1`
+4. `docker push yourusername/rescaper:v1.1.1`
 
 ---
 
@@ -49,7 +49,7 @@ python3 -m http.server 8000
 ### **빌드 스크립트 실행**
 ```bash
 # AMD64 및 ARM64 모두를 지원하는 이미지 빌드 및 푸시
-./scripts/build-multiarch.sh v1.1.0 yourusername
+./scripts/build-multiarch.sh v1.1.1 yourusername
 ```
 
 ---
@@ -60,7 +60,7 @@ python3 -m http.server 8000
 이 오류는 빌드 아키텍처와 실행 서버 아키텍처가 다를 때 발생합니다 (예: Mac M1에서 빌드 후 Intel 서버에서 실행).
 - **해결 1:** `build-multiarch.sh` 스크립트를 사용하여 빌드하십시오.
 - **해결 2:** 특정 플랫폼을 명시하여 빌드하십시오.
-  `./scripts/build-specific-platform.sh v1.1.0 linux/amd64 yourusername`
+  `./scripts/build-specific-platform.sh v1.1.1 linux/amd64 yourusername`
 
 ---
 

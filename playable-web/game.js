@@ -23,7 +23,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const GROUND_Y = HEIGHT - 75;
 const WORLD_WIDTH = 3200;
-const APP_VERSION = "1.1.0-final";
+const APP_VERSION = "v1.1.1";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const META_STORAGE_KEY = "rescaperMeta";
 
