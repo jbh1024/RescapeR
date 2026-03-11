@@ -1,34 +1,37 @@
 #!/bin/bash
 
-# RescapeR Docker Hub 배포 스크립트
-# 사용법: ./deploy-dockerhub.sh [태그] [도커허브사용자명]
+# RescapeR Docker Hub Deployment Script
+# Usage: ./scripts/deploy-dockerhub.sh [tag] [dockerhub_username]
 
 set -e
 
-# 기본값 설정
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+
+# Default values
 TAG="${1:-latest}"
 DOCKER_USER="${2:-}"
 IMAGE_NAME="rescaper"
 
-echo "🐳 RescapeR Docker Hub 배포"
+echo "🐳 RescapeR Docker Hub Deploy"
 echo "============================"
 
-# Docker 사용자명 확인
+# Check for Docker username
 if [ -z "$DOCKER_USER" ]; then
-    # 저장된 사용자명 확인
+    # Check for saved username in project root
     if [ -f ".dockeruser" ]; then
         DOCKER_USER=$(cat .dockeruser)
-        echo "✓ 저장된 Docker 사용자명 사용: $DOCKER_USER"
+        echo "✓ Using saved Docker username: $DOCKER_USER"
     else
-        echo "Docker Hub 사용자명을 입력하세요:"
+        echo "Please enter your Docker Hub username:"
         read -r DOCKER_USER
         if [ -z "$DOCKER_USER" ]; then
-            echo "❌ 오류: Docker 사용자명이 필요합니다"
+            echo "❌ Error: Docker username is required."
             exit 1
         fi
-        # 사용자명 저장 (선택사항)
+        # Save username for future use (in project root)
         echo "$DOCKER_USER" > .dockeruser
-        echo "✓ 사용자명 저장됨 (.dockeruser)"
+        echo "✓ Username saved to .dockeruser"
     fi
 fi
 
@@ -36,39 +39,39 @@ FULL_IMAGE_NAME="$DOCKER_USER/$IMAGE_NAME:$TAG"
 LATEST_NAME="$DOCKER_USER/$IMAGE_NAME:latest"
 
 echo ""
-echo "📋 배포 정보:"
-echo "  - 이미지: $IMAGE_NAME"
-echo "  - 태그: $TAG"
+echo "📋 Deployment Info:"
+echo "  - Image: $IMAGE_NAME"
+echo "  - Tag: $TAG"
 echo "  - Docker Hub: $DOCKER_USER"
-echo "  - 전체 이름: $FULL_IMAGE_NAME"
+echo "  - Full Name: $FULL_IMAGE_NAME"
 echo ""
 
-# Docker 로그인 상태 확인
-echo "🔐 Docker Hub 로그인 확인..."
+# Check Docker login status
+echo "🔐 Checking Docker Hub login..."
 if ! docker info | grep -q "Username"; then
-    echo "Docker Hub에 로그인이 필요합니다"
+    echo "Login required for Docker Hub..."
     docker login
 else
-    echo "✓ 이미 로그인되어 있습니다"
+    echo "✓ Already logged in."
 fi
 
-# 이미지 빌드
+# Build image
 echo ""
-echo "📦 이미지 빌드 중..."
+echo "📦 Building image..."
 docker build -t "$IMAGE_NAME:$TAG" .
 
-# 태그 설정
+# Tag image
 echo ""
-echo "🏷️  태그 설정..."
+echo "🏷️  Tagging image..."
 docker tag "$IMAGE_NAME:$TAG" "$FULL_IMAGE_NAME"
 docker tag "$IMAGE_NAME:$TAG" "$LATEST_NAME"
 
 echo "  ✓ $IMAGE_NAME:$TAG → $FULL_IMAGE_NAME"
 echo "  ✓ $IMAGE_NAME:$TAG → $LATEST_NAME"
 
-# 이미지 푸시
+# Push image
 echo ""
-echo "🚀 Docker Hub로 푸시 중..."
+echo "🚀 Pushing to Docker Hub..."
 echo "  → $FULL_IMAGE_NAME"
 docker push "$FULL_IMAGE_NAME"
 
@@ -76,15 +79,15 @@ echo ""
 echo "  → $LATEST_NAME"
 docker push "$LATEST_NAME"
 
-# 완료
+# Completion
 echo ""
-echo "✅ 배포 완료!"
+echo "✅ Deployment complete!"
 echo ""
-echo "📎 이미지 주소:"
+echo "📎 Pull command:"
 echo "  docker pull $FULL_IMAGE_NAME"
 echo ""
-echo "🌐 Docker Hub:"
+echo "🌐 Docker Hub URL:"
 echo "  https://hub.docker.com/r/$DOCKER_USER/$IMAGE_NAME"
 echo ""
-echo "🧪 로컬 테스트:"
-echo "  docker run -p 8080:80 $FULL_IMAGE_NAME"
+echo "🧪 Local test:"
+echo "  docker run -p 8080:80 $FULL_IMAGE_NAME""

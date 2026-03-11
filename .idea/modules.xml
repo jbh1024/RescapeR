@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Rescape-codex.iml" filepath="$PROJECT_DIR$/.idea/Rescape-codex.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Rescape.iml" filepath="$PROJECT_DIR$/.idea/Rescape.iml" />
     </modules>
   </component>
 </project>

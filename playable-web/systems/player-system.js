@@ -3,16 +3,20 @@ import { RescapeRConfig as Config } from './data-config.js';
 export const RescapeRPlayerSystem = {
   createBasePlayer(meta) {
     const p = {
-      x: 90, y: 0, w: 36, h: 60, vx: 0, vy: 0, facing: 1, onGround: false,
-      hp: 120, maxHp: 120 + (meta.maxHpBonus || 0),
+      x: 0, y: 0, w: 32, h: 42, vx: 0, vy: 0, onGround: false,
+      hp: 100, maxHp: 100,
       baseSpeed: 4.5, speedMul: 1 + (meta.speedBonus || 0),
-      baseDamage: 18, damageMul: 1 + (meta.damageBonus || 0),
-      attackTimer: 0, attackCd: 260, dashTimer: 0, dashCd: 950, invuln: 0,
-      level: 1, xp: 0, needXp: 45, gold: 0, inventory: ["회복키트", "빈 슬롯"],
-      skillIds: [], skillNames: [], artifacts: [], codename: "", weapon: null, styleId: "striker", walkAnim: 0, attackSwing: 0,
-      lifeStealOnKill: 0, critChance: 0, critDamageMul: 1.5, damageTakenMul: 1,
-      regenPerSec: 0, regenTimer: 0, skillReachBonus: 0, executeThreshold: 0, executeDamageMul: 0,
-      invuln: 0, dashCdMul: 1, attackCdMul: 1
+      baseDamage: 25, damageMul: 1 + (meta.damageBonus || 0),
+      attackCd: 250, attackCdMul: 1.0, 
+      dashCd: 800, dashCdMul: 1.0, 
+      attackTimer: 0, dashTimer: 0,
+      level: 1, xp: 0, needXp: 50, gold: 0,
+      inventory: ["빈 슬롯", "빈 슬롯", "빈 슬롯"],
+      lifeStealOnKill: 0, critChance: 0.05, critDamageMul: 1.5, damageTakenMul: 1,
+      regenPerSec: 0, regenTimer: 0, regenStacks: 0,
+      dashCd: 800, dashTimer: 0, jumpCount: 0, maxJumps: 2,
+      facing: 1, walkAnim: 0, invuln: 0, attackSwing: 0,
+      skillNames: [], styleId: "none", weapon: null
     };
     p.hp = p.maxHp;
     // 기본 무기 장착

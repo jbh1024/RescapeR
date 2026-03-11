@@ -1,76 +1,52 @@
-# [PRD] RescapeR Production Baseline
+---
+name: project requirement document
+description: 제품 요구사항 및 기술 아키텍처 (Product Requirement Document)
+---
+# [PRD] RescapeR Product Requirement Document
 
 | 항목 | 값 |
 |---|---|
-| 문서 버전 | v6.2 (Employee Name & Economic Concept Update) |
-| 기준일 | 2026-03-10 |
+| 문서 버전 | v6.5 (Architectural Alignment) |
+| 기준일 | 2026-03-11 |
 | 프로젝트명 | RescapeR |
-| 장르 | 2D Roguelite Action Platformer |
+| 목표 플랫폼 | Web (PWA), Desktop (Docker) |
 
-## 1. 프로젝트 개요 & 하이 컨셉
+## 1. 프로젝트 비전
 - **하이 컨셉:** "퇴근을 위해 회사라는 던전을 탈출하라!"
-- **초기화 로직:** 브라우저 새로고침, 접속, 사망 시 항상 **지하 6층(B6)**부터 새로 시작 (로그라이트 런 초기화).
-- **특이사항:** 9층(대표이사실) 배경에 전용 슬로건 "우리는 남들이 가지 않는 길을 간다" 상시 노출.
+- **핵심 가치:** 직장 생활의 스트레스를 로그라이트 액션으로 해소하는 유머러스하고 속도감 있는 경험 제공.
 
-## 2. 게임 루프 & 전투 시스템 기준
-- **진행 흐름:** `사원명 입력 -> B6 시작 -> 층 진행 -> 9F 보스 -> 클리어`
-- **사원명 설정:** 게임 시작 시 '입사 지원서' UI를 통해 이름을 입력받음 (기본값: '야근러').
-- **재화 시스템:** 게임 내 화폐 명칭을 **'야근수당'**으로 통일.
-- **전투 보상:** 몬스터 처치 시 확률적 아이템 드랍 (야근수당 30%, 회복키트 10%).
-- **회복 시스템:** 획득한 회복키트는 인벤토리에 우선 보관되며 'Q' 키로 전략적 사용 가능 (단일 키 입력당 1개 소모 보장).
-- **이스터에그:** 숫자 키 '0' 입력 시 야근수당 100 확보.
-- **핵심 전투 시스템:**
-  - 무기/어픽스, 랜덤 수치 스킬 선택, 전투 스타일, 콤보/오버드라이브, 적 변이(mutator)
-  - 보스/임원 페이즈 분기(1~3), 페이즈별 스킬 쿨타임/압박 패턴 강화
-  - 실시간 데미지 텍스트(일반/치명타/피격) 및 타격 파티클 효과 적용
-- **층 콘텐츠:** B1 보급소(상점 시각화/상호작용), 층별 특수 이벤트 룸(E 상호작용)
+## 2. 기술 아키텍처 (Web 기준)
+- **Engine:** Pure JavaScript (ES6+ Modules) & HTML5 Canvas 2D.
+- **Core Loop:** Frame-rate independent physics using Delta Time (dt).
+- **State Management:** Centralized `state` object passed across systems.
+- **Modularity:**
+  - `game.js`: Entry point & Main Loop.
+  - `systems/`: Feature-specific modules (Render, Combat, AI, Audio, FX, UI, Input, Save, Asset).
+  - `data-config.js`: Static data registry (Floor plans, Weapon catalogs, Themes).
+- **Storage:** `LocalStorage` based persistent data (`rescaperSave`, `rescaperMeta`, `rescaperSettings`).
+- **PWA Support:** Service Worker (`sw.js`) for offline capability and manifest for installation.
 
-## 3. Web 제품 및 아키텍처 기준
-- **렌더링:** HTML5 Canvas 2D (RenderSystem 모듈화)
-- **아키텍처 (ES Modules 기반):**
-  - **Core 엔진 (`game.js`):** 메인 루프 및 전역 상태(state 객체) 관리, 시스템별 주입 방식 사용
-  - **데이터 설정 (`systems/data-config.js`):** 층 구성, 무기, 스탯 등 정적 데이터 분리
-  - **기능 시스템 (`systems/*`):** 렌더링, 전투, 오디오, FX, 저장, 자산 관리 등 독립 모듈로 캡슐화
-- **자산 관리:** `AssetManager` 모듈을 통한 비동기 자산 로딩 및 중앙 관리
-- **저장/복구 (LocalStorage):**
-  - 자동 저장(`rescaperSave`)
-  - 메타데이터(`rescaperMeta`), 설정(`rescaperSettings`) 분리
+## 3. 주요 기능 요구사항
+- **로그라이트 진행:** 사망 시 B6부터 재시작. 층별 무작위 요소(몬스터 어픽스, 스킬 드랍).
+- **성장 시스템:** 층 클리어 시 스킬 선택(3택 1), 상점(B1 보급소)을 통한 장비 및 아티팩트 구매.
+- **전투 시스템:** 근접/원거리 공격, 대시, 실시간 피드백(데미지 텍스트, 화면 흔들림, 파티클).
+- **보스전:** 9F 최종 보스(CEO)를 포함한 층별 미니보스/섹션 보스. 페이즈 전환 시스템(1~3페이즈).
+- **편의 기능:** 자동 저장, 일시정지, 조작 가이드 패널(H), 이펙트 최적화(V).
 
-## 4. UI/HUD 기준
-- **상단 정보:** 사원명 옆 회복키트 보유수 표시, 동적 HP바(100~50% 초록 / 50~20% 주황 / 20% 미만 빨강), 야근수당 잔액.
-- **상태값 대시보드:** 2열 3행 레이아웃으로 공격력, 이동속도, 공격속도, 방어력, 크리티컬데미지, 치명타율 실시간 표시.
-- **장비/성장:** 장착 중인 키보드 정보(이름/티어/특징) 및 획득한 영구 업그레이드(Artifacts) 리스트 상시 노출.
-- **버프 현황:** 현재 적용된 모든 스킬/버프 효과를 캐릭터 우측에 카드 형태로 가시화.
-- **일시정지 화면:** '일시정지' 타이틀과 함께 현재 레벨, 스테이지명, 플레이 시간(분:초) 상세 정보 박스 출력.
-- **패널 토글:** `H` 키로 조작법/로그/상태 패널 숨김/표시
+## 4. UI/UX 가이드라인
+- **HUD:** 실시간 스탯 대시보드 (ATK, SPD, ASPD, DEF, CRIT, CRIT_DMG).
+- **피드백:** HP 잔량에 따른 바 색상 변경 (녹/황/적). 캐릭터 상태 카드 표시.
+- **테마:** 층별 고유 컬러셋 및 배경 이미지 적용 (data-config.js 정의 준수).
 
-## 5. 조작 표준 (현재 빌드)
-- 이동: `← / →`
-- 점프: `↑`
-- 공격: `Space`
-- 대시: `Shift`
-- 상호작용/상점/이벤트: `E`
-- 소비 슬롯: `Q`
-- 스킬 선택: `1 / 2 / 3`
-- 재시작(사망): `R`
-- 정보 패널 토글: `H`
-- 이스터에그 층 이동: `+ / -`
-- 볼륨: `Alt + + / 일시정지: P`
-- 음소거: `M`
+## 5. 품질 및 검증 기준
+- **성능:** 60FPS 타겟, 저사양 기기를 위한 이펙트 간소화 모드 지원.
+- **안정성:** `state.floor` 존재 여부 체크를 통한 렌더링 오류 방지.
+- **테스트:** 
+  - 정적 분석: `node --check playable-web/game.js`
+  - 자동화 테스트: Playwright (`tests/*.spec.js`)
+  - 스모크 테스트: `./playable-web/smoke-check.sh`
 
-## 6. 저장소/병합 및 배포 기준
-- **실제 실행/배포 대상:** `playable-web/*`
-- **Unity 영역:** 스캐폴딩(`Assets/Scripts/*`)으로 유지
-- **최소 검증:**
-  - `node --check playable-web/game.js`
-  - `./playable-web/smoke-check.sh`
-- **PWA 필수 자산:**
-  - `playable-web/manifest.webmanifest`
-  - `playable-web/sw.js`
-  - `playable-web/icon.svg`
-
-## 7. 개발 및 변경 규칙
-- 에이전트 작업은 `GEMINI.md` 규칙을 최우선으로 준수
-- 신규 기능은 `playable-web` 우선 개발
-- 저장 스키마 변경 시 하위 호환 고려
-- 루트에 중복 실행 자산(`index.html`, `game.js`) 추가 금지
+## 6. 배포 및 운영
+- **Docker:** Nginx 기반 경량 이미지 (alpine).
+- **CI/CD:** GitHub Actions를 통한 멀티 아키텍처 빌드 (AMD64, ARM64).
+- **버전 관리:** Semantic Versioning 적용.

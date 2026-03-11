@@ -1,30 +1,35 @@
-# RescapeR Docker Image
-# Static web game served with Nginx
+# RescapeR Docker Image - Multi-stage build with obfuscation
+# 1. Build stage for JS obfuscation
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
 
+COPY playable-web/ ./playable-web/
+# Obfuscate JS files in playable-web and preserve structure
+# We output to a separate directory to avoid source contamination
+RUN npx javascript-obfuscator ./playable-web --output ./dist --compact true --string-array true --string-array-rotate true --string-array-shuffle true --string-array-threshold 0.75 --self-defending false
+
+# 2. Production stage
 FROM nginx:alpine
-
 LABEL maintainer="RescapeR Team"
-LABEL description="RescapeR - IT 회사 탈출 로그라이트 액션 게임"
+LABEL description="RescapeR - IT 회사 탈출 로그라이트 액션 게임 (Obfuscated)"
 
-# 작업 디렉토리 설정
 WORKDIR /usr/share/nginx/html
-
-# 기본 nginx 설정 제거 및 커스텀 설정 복사
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
-# 게임 파일 복사 (playable-web 디렉토리의 내용을 루트로)
+# First copy all original assets (HTML, CSS, images, etc.)
 COPY playable-web/ .
 
-# 권한 설정
+# Then overwrite JS files with obfuscated ones from builder stage
+# javascript-obfuscator output will have the same relative paths as input
+COPY --from=builder /app/dist/ ./
+
 RUN chmod -R 755 /usr/share/nginx/html && \
     chown -R nginx:nginx /usr/share/nginx/html
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
-# 포트 노출
 EXPOSE 80
-
-# Nginx 실행
 CMD ["nginx", "-g", "daemon off;"]

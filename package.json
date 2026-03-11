@@ -8,7 +8,8 @@
     "test:pw": "npx playwright test",
     "smoke": "./playable-web/smoke-check.sh",
     "serve": "python3 -m http.server 8000",
-    "dev": "./scripts/deploy.sh dev"
+    "dev": "./scripts/deploy.sh dev",
+    "obfuscate": "javascript-obfuscator ./playable-web --output ./playable-web/dist --compact true --string-array true --string-array-rotate true --string-array-shuffle true --string-array-threshold 0.75"
   },
   "repository": {
     "type": "git",
@@ -29,6 +30,7 @@
   "homepage": "https://github.com/jbh1024/RescapeR#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "javascript-obfuscator": "^4.1.1",
     "playwright": "^1.58.2"
   }
 }

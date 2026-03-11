@@ -370,7 +370,7 @@ export const RescapeRRenderSystem = {
   drawHud(ctx, p, floorLabel, runTime, width, theme, enemyCount) {
     // 1. 좌측 상단 기본 정보 HUD
     ctx.textAlign = "start";
-    this.drawPixelRect(ctx, 18, 18, 280, 85, "rgba(0,0,0,0.7)");
+    this.drawPixelRect(ctx, 18, 18, 300, 85, "rgba(0,0,0,0.7)");
     
     const kitCount = p.inventory.filter(item => item === "회복키트").length;
     ctx.fillStyle = "#fff"; 
@@ -457,7 +457,7 @@ export const RescapeRRenderSystem = {
     // 3. 우측 상단 스테이지 정보
     const floorText = floorLabel();
     ctx.textAlign = "right";
-    this.drawPixelRect(ctx, width - 240, 18, 222, 50, "rgba(0,0,0,0.6)");
+    this.drawPixelRect(ctx, width - 240, 18, 222, 68, "rgba(0,0,0,0.6)");
     ctx.fillStyle = "#ffcf6e";
     ctx.font = "bold 16px monospace";
     ctx.fillText(floorText, width - 30, 40);
@@ -465,6 +465,14 @@ export const RescapeRRenderSystem = {
     ctx.fillStyle = "#fff";
     ctx.font = "11px monospace";
     ctx.fillText(enemyCount > 0 ? `남은 적: ${enemyCount}명` : "층 클리어! 다음 문으로", width - 30, 58);
+
+    // 플레이타임 표시 추가
+    const totalSec = Math.floor(runTime / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    const timeStr = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    ctx.fillStyle = "#87cefa";
+    ctx.fillText(`진행 시간: ${timeStr}`, width - 30, 75);
 
     // 4. 버프/스킬 효과 표시 (캐릭터 정보 우측)
     if (p.skillNames && p.skillNames.length > 0) {

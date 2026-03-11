@@ -153,7 +153,13 @@ const SKILL_TEMPLATES = [
     label: "정밀사격",
     roll: () => {
       const v = Utils.randInt(4, 14) / 100;
-      return { desc: `치명타 확률 +${Utils.pctText(v)}`, tag: `치확+${Utils.pctText(v)}`, apply: (p) => { p.critChance += v; } };
+      return { 
+        desc: `치명타 확률 +${Utils.pctText(v)}<br><span style="color:#aaa; font-size:0.8rem;">(최대 상한: 30%)</span>`, 
+        tag: `치확+${Utils.pctText(v)}`, 
+        apply: (p) => { 
+          p.critChance = Math.min(0.3, p.critChance + v); 
+        } 
+      };
     },
   },
   {
@@ -169,15 +175,30 @@ const SKILL_TEMPLATES = [
     label: "강철몸",
     roll: () => {
       const v = Utils.randInt(5, 16) / 100;
-      return { desc: `받는 피해 -${Utils.pctText(v)}`, tag: `방어-${Utils.pctText(v)}`, apply: (p) => { p.damageTakenMul *= (1 - v); } };
+      return { 
+        desc: `받는 피해 -${Utils.pctText(v)}<br><span style="color:#aaa; font-size:0.8rem;">(최대 중첩 제한: -50%)</span>`, 
+        tag: `방어-${Utils.pctText(v)}`, 
+        apply: (p) => { 
+          p.damageTakenMul = Math.max(0.5, p.damageTakenMul * (1 - v)); 
+        } 
+      };
     },
   },
   {
     id: "regen",
     label: "회복호흡",
     roll: () => {
-      const v = Utils.randInt(1, 4);
-      return { desc: `초당 HP +${v} 재생`, tag: `재생+${v}`, apply: (p) => { p.regenPerSec += v; } };
+      const v = Math.min(2, Utils.randInt(1, 4));
+      return { 
+        desc: `초당 HP +${v} 재생<br><span style="color:#aaa; font-size:0.8rem;">(최대 중첩 제한: 2회)</span>`, 
+        tag: `재생+${v}`, 
+        apply: (p) => { 
+          p.regenStacks = (p.regenStacks || 0) + 1;
+          if (p.regenStacks <= 2) { 
+            p.regenPerSec = (p.regenPerSec || 0) + v;
+          }
+        } 
+      };
     },
   },
   {
@@ -350,9 +371,9 @@ const CHARACTER_STYLES = {
   vanguard: {
     name: "선봉형",
     hpBonus: 34,
-    damageMul: 1.08,
+    damageMul: 1.0,
     speedMul: 0.94,
-    attackCdMul: 1.06,
+    attackCdMul: 1.0,
     dashCdMul: 1.08,
     reachBonus: 4,
     armorMul: 0.88,
@@ -363,9 +384,9 @@ const CHARACTER_STYLES = {
   striker: {
     name: "돌격형",
     hpBonus: 12,
-    damageMul: 1.16,
-    speedMul: 1.04,
-    attackCdMul: 0.93,
+    damageMul: 1.0,
+    speedMul: 1.0,
+    attackCdMul: 1.0,
     dashCdMul: 0.96,
     reachBonus: 8,
     armorMul: 1,
@@ -376,9 +397,9 @@ const CHARACTER_STYLES = {
   phantom: {
     name: "유령형",
     hpBonus: -14,
-    damageMul: 1.06,
-    speedMul: 1.22,
-    attackCdMul: 0.82,
+    damageMul: 1.0,
+    speedMul: 1.2,
+    attackCdMul: 1.0,
     dashCdMul: 0.8,
     reachBonus: 12,
     armorMul: 1.02,

@@ -1,49 +1,22 @@
-# RescapeR Web Build
+# RescapeR Web App
 
-`playable-web`는 실제 배포/실행 대상 웹 빌드 디렉토리입니다.
+`playable-web` 디렉토리는 RescapeR 게임의 실제 프로덕션 소스 코드를 포함하고 있습니다.
 
-## 실행
-프로젝트 루트에서:
-
+## 🚀 빠른 실행
+프로젝트 루트에서 다음 명령어를 실행하십시오:
 ```bash
 python3 -m http.server 8000
-# http://localhost:8000/playable-web/
+# 접속 주소: http://localhost:8000/playable-web/
 ```
 
-## 점검
-프로젝트 루트에서:
+## 🛠️ 개발 및 점검
+- **구문 체크:** `node --check game.js`
+- **스모크 테스트:** `./smoke-check.sh`
+- **전체 가이드:** 프로젝트 루트의 `README.md`를 참고하십시오.
 
-```bash
-node --check playable-web/game.js
-./playable-web/smoke-check.sh
-```
-
-## 조작
-- 이동: `← / →`
-- 점프: `↑`
-- 공격: `Space`
-- 대시: `Shift`
-- 상호작용/상점/이벤트: `E`
-- 소비 슬롯: `Q`
-- 스킬 선택: `1 / 2 / 3`
-- 재시작(사망): `R`
-- 정보 패널 토글: `H`
-- 이스터에그 층 이동: `+ / -`
-- 볼륨: `Alt + + / Alt + -`
-- 음소거: `M`
-- 이펙트 간소화: `V`
-- 일시정지: `P`
-
-## 구현 하이라이트
-- 보스/임원 페이즈 분기 강화(1~3)
-- 무기 고유 패시브 상태 HUD
-- 층별 특수 이벤트 룸(E 상호작용)
-- 랭킹(클리어 횟수 + 클리어타임)
-
-## 포함 파일
-- `index.html`
-- `styles.css`
-- `game.js`
-- `manifest.webmanifest`
-- `sw.js`
-- `icon.svg`
+## 📁 주요 구성 요소
+- `game.js`: 메인 게임 엔진 및 루프
+- `systems/`: 기능별 모듈 (Combat, Render, AI 등)
+- `index.html`: 게임 캔버스 및 레이아웃
+- `styles.css`: 게임 UI 스타일링
+- `sw.js`: PWA 서비스 워커

@@ -79,6 +79,10 @@ function showNameInput() {
 }
 
 function startRun(name = "야근러") {
+  // 새 게임 시작 시 이전 런 데이터 및 영구 업그레이드 초기화
+  localStorage.clear();
+  state.meta = SaveSystem.loadMeta(localStorage, META_STORAGE_KEY);
+  
   state.player = PlayerSystem.createBasePlayer(state.meta);
   state.player.codename = name; // 입력받은 이름 설정
   PlayerSystem.applyCombatStyle(state.player, "striker");
@@ -283,6 +287,8 @@ InputSystem.init((e, wasDown) => {
   AudioSystem.unlockAudio();
   if (wasDown) return; // 연속 입력(키 유지) 방지
 
+
+
   const key = e.key.toLowerCase();
   
   if (key === "r" && (state.mode === "dead" || state.mode === "clearChoice")) {
@@ -315,17 +321,16 @@ InputSystem.init((e, wasDown) => {
     }
   }
 
-  // 이스터에그: 층 이동 (+ / -)
-  // + 키는 대개 shift와 함께 눌려 '=' 로 인식되거나 '+' 자체로 인식됨
-  if (e.key === "+" || e.key === "=") {
-    nextFloor();
-    log("이스터에그: 다음 층으로 이동");
-  }
-  if (e.key === "-") {
+  // 이스터에그: 층 이동 (Ctrl + [ / ])
+  if (e.ctrlKey && e.code === "BracketLeft") {
     prevFloor();
     log("이스터에그: 이전 층으로 이동");
   }
-  if (e.key === "0") {
+  if (e.ctrlKey && e.code === "BracketRight") {
+    nextFloor();
+    log("이스터에그: 다음 층으로 이동");
+  }
+  if (e.ctrlKey && e.code === "Digit0") {
     state.player.gold += 100;
     log("이스터에그: 야근수당 +100 확보!");
   }
@@ -423,12 +428,22 @@ function onWin() {
   // 클리어 시 진행 중인 런 세이브 삭제
   SaveSystem.clearRunSnapshot(localStorage, SAVE_STORAGE_KEY);
 
+  const timeStr = UiSystem.formatDuration(state.runElapsedMs);
+  const grade = UiSystem.gradeByTime(state.runElapsedMs);
+
   overlayEl.classList.remove("hidden");
   overlayEl.innerHTML = `
-    <div style="text-align:center;">
-      <h1 style="color:#ffd700; font-size:3rem;">퇴근 성공!</h1>
-      <p>무사히 회사를 탈출했습니다!</p>
-      <button onclick="location.reload()" style="padding:10px 20px; font-size:1.2rem; cursor:pointer; background:#ffd700; color:#000; border:none; border-radius:5px;">처음으로</button>
+    <div style="text-align:center; background:rgba(0,0,0,0.85); padding:40px; border-radius:20px; border:3px solid #ffd700; box-shadow:0 0 30px rgba(255,215,0,0.3);">
+      <h1 style="color:#ffd700; font-size:4rem; margin-bottom:10px; text-shadow:2px 2px 4px rgba(0,0,0,0.5);">퇴근 성공!</h1>
+      <p style="font-size:1.5rem; color:#fff; margin-bottom:30px;">축하합니다! 무사히 회사를 탈출했습니다!</p>
+      
+      <div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:15px; margin-bottom:30px; display:inline-block; min-width:320px;">
+        <p style="font-size:1.2rem; color:#ffd700; margin:10px 0;"><b>총 소요 시간:</b> <span style="font-size:1.8rem; color:#fff; margin-left:10px;">${timeStr}</span></p>
+        <p style="font-size:1.2rem; color:#8de0c3; margin:10px 0;"><b>최종 평가:</b> <span style="font-size:1.8rem; color:#fff; margin-left:10px;">${grade}</span></p>
+      </div>
+      
+      <br>
+      <button onclick="location.reload()" style="padding:15px 40px; font-size:1.3rem; cursor:pointer; background:#ffd700; color:#000; border:none; border-radius:10px; font-weight:bold; transition:transform 0.2s;">처음으로</button>
     </div>
   `;
 }
@@ -455,6 +470,12 @@ function showSkillSelection() {
         `).join('')}
       </div>
       <p style="margin-top:20px; font-size:0.9rem; color:#aaa;">숫자 키 1, 2, 3 을 눌러 선택하세요</p>
+      <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; display:inline-block; text-align:left; font-size:0.8rem; color:#999; line-height:1.5; border:1px solid #333;">
+        <div style="margin-bottom:4px;"><b>[스킬별 제한 사항]</b></div>
+        • <b>회복호흡</b>: 초당 재생량 최대 2, 최대 2중첩까지만 적용<br>
+        • <b>강철몸</b>: 받는 피해 감소 효과는 최대 -50%까지만 제한<br>
+        • <b>정밀사격</b>: 치명타 확률은 최대 30%까지만 중첩 가능
+      </div>
     </div>
   `;
 }
