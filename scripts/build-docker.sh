@@ -15,7 +15,7 @@ echo ""
 
 # Docker 이미지 빌드
 echo "📦 Building Docker image..."
-docker build -t ${IMAGE_NAME}:${TAG} .
+docker build -t ${IMAGE_NAME}:${TAG} -f docker/Dockerfile .
 
 # 레지스트리가 제공된 경우 태그 추가 및 푸시
 if [ -n "$REGISTRY" ]; then

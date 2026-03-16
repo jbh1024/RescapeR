@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  rescaper:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: rescaper:latest
+    container_name: rescaper-game
+    ports:
+      - "80:80"
+    restart: always
+    # 프로덕션 리소스 제한
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    # 로깅 설정
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

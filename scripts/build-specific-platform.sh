@@ -58,6 +58,7 @@ echo ""
 echo "📦 Building image for $PLATFORM..."
 docker buildx build \
     --platform "$PLATFORM" \
+    --file docker/Dockerfile \
     --tag "$DOCKER_USER/$IMAGE_NAME:$TAG" \
     --push \
     .

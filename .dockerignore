@@ -1,3 +1,18 @@
+# Docker 관련
+docker/
+.dockerignore
+.dockeruser
+
+# Agent & Tools
+.serena/
+.geminiignore
+GEMINI.md
+
+# Testing
+tests/
+test-results/
+playwright.config.js
+
 # Git
 .git
 .gitignore
@@ -9,13 +24,6 @@
 *.swo
 .DS_Store
 
-# 문서 (선택사항 - 배포에 포함하지 않으려면 주석 해제)
-# *.md
-# PRD.md
-# OVERVIEW.md
-# AGENTS.md
-# README.md
-
 # Unity 스캐폴드 (웹 배포 불필요)
 Assets/
 
@@ -24,11 +32,7 @@ playable-web/assets/sources/
 playable-web/assets/docs/
 *.zip
 
-# Docker 관련 (자기 자신 제외)
-Dockerfile*
-docker-compose*.yml
-.dockerignore
-
-# 기타
+# Node
 node_modules/
+package-lock.json
 *.log

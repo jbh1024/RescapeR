@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  rescaper:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: rescaper-game
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # 개발 시 볼륨 마운트 (핫리로드)
+    # volumes:
+    #   - ./playable-web:/usr/share/nginx/html:ro
+
+  # 선택사항: Reverse Proxy (https 지원 시)
+  # nginx-proxy:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+  #   depends_on:
+  #     - rescaper

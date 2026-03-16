@@ -9,8 +9,8 @@
 2.  **Unity Scaffold (참조):** 향후 Unity 이식이나 구조적 참조를 위한 C# 스크립트. **직접적인 웹 게임 기능에 영향을 주지 않으며 변경은 신중해야 합니다.**
 
 ## 📘 핵심 참조 문서
-- **기능 요구사항 & 아키텍처:** `PRD.md` (Product Requirement Document)
-- **게임 디자인 & 상세 데이터:** `GRD.md` (Game Design Document)
+- **기능 요구사항 & 아키텍처:** `docs/PRD.md` (Product Requirement Document)
+- **게임 디자인 & 상세 데이터:** `docs/GDD.md` (Game Design Document)
 - **정적 데이터 상수:** `playable-web/systems/data-config.js`
 
 ## 🛠️ 에이전트 개발 규칙 (Conventions)

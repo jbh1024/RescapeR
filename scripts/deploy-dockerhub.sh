@@ -58,7 +58,7 @@ fi
 # Build image
 echo ""
 echo "📦 Building image..."
-docker build -t "$IMAGE_NAME:$TAG" .
+docker build -t "$IMAGE_NAME:$TAG" -f docker/Dockerfile .
 
 # Tag image
 echo ""

@@ -58,6 +58,7 @@ echo ""
 
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
+    --file docker/Dockerfile \
     --tag "$DOCKER_USER/$IMAGE_NAME:$TAG" \
     --tag "$DOCKER_USER/$IMAGE_NAME:latest" \
     --push \
