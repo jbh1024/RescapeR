@@ -1,7 +1,12 @@
 # Docker 관련
-docker/
 .dockerignore
 .dockeruser
+
+# Server & Backend (도커 빌드 컨텍스트 최적화)
+server/node_modules/
+server/ranking.db-journal
+server/ranking.db-shm
+server/ranking.db-wal
 
 # Agent & Tools
 .serena/

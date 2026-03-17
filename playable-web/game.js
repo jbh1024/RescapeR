@@ -6,6 +6,7 @@ import { RescapeRAssetManager as AssetManager } from './systems/asset-manager.js
 import { RescapeRSaveSystem as SaveSystem } from './systems/save-system.js';
 import { RescapeRCombatSystem as CombatSystem } from './systems/combat-system.js';
 import { RescapeRUiSystem as UiSystem } from './systems/ui-system.js';
+import { RescapeRRankingSystem as RankingSystem } from './systems/ranking-system.js';
 import { RescapeRRenderSystem as RenderSystem } from './systems/render-system.js';
 import { RescapeRMonsterArchetypeSystem as MonsterArchetypeSystem } from './systems/monster-archetype-system.js';
 import { RescapeRFloorSystem as FloorSystem } from './systems/floor-system.js';
@@ -94,6 +95,9 @@ function startRun(name = "야근러") {
   state.runStartTs = performance.now();
   overlayEl.classList.add("hidden");
   log(`신입사원 ${name}님, 탈출을 시작합니다.`);
+
+  // 대기 중인 랭킹 기록이 있다면 재전송 시도
+  RankingSystem.retryBufferedRecords();
 }
 
 function togglePause(forcePause = null) {
@@ -303,6 +307,28 @@ InputSystem.init((e, wasDown) => {
       log("UI 패널 토글");
     }
   }
+
+  if (key === "k") {
+    if (state.mode === "ranking") {
+      // 1. 이미 랭킹 보드가 열려있는 경우 -> 닫기
+      overlayEl.classList.add("hidden");
+      state.mode = state.prevMode || "playing";
+      if (state.mode === "playing") state.running = true;
+    } else if (state.mode === "playing") {
+      // 2. 게임 플레이 중인 경우 -> 랭킹 보드 열기
+      state.prevMode = state.mode;
+      state.mode = "ranking";
+      state.running = false; // 게임 일시정지
+      
+      UiSystem.showRankingBoard(overlayEl, RankingSystem, () => {
+        // '닫기' 버튼(DOM) 클릭 시 처리
+        if (state.mode === "ranking") {
+          state.mode = state.prevMode || "playing";
+          if (state.mode === "playing") state.running = true;
+        }
+      });
+    }
+  }
   
   if (key === "p") {
     togglePause();
@@ -321,18 +347,22 @@ InputSystem.init((e, wasDown) => {
     }
   }
 
-  // 이스터에그: 층 이동 (Ctrl + [ / ])
-  if (e.ctrlKey && e.code === "BracketLeft") {
-    prevFloor();
-    log("이스터에그: 이전 층으로 이동");
-  }
-  if (e.ctrlKey && e.code === "BracketRight") {
-    nextFloor();
-    log("이스터에그: 다음 층으로 이동");
-  }
-  if (e.ctrlKey && e.code === "Digit0") {
-    state.player.gold += 100;
-    log("이스터에그: 야근수당 +100 확보!");
+  // 이스터에그: 층 이동 (Ctrl + [ / ]) - 정보 패널(H)이 열려있을 때만 작동
+  const isPanelOpen = document.querySelector(".layout")?.classList.contains("show-panels");
+  
+  if (isPanelOpen) {
+    if (e.ctrlKey && e.code === "BracketLeft") {
+      prevFloor();
+      log("이스터에그: 이전 층으로 이동");
+    }
+    if (e.ctrlKey && e.code === "BracketRight") {
+      nextFloor();
+      log("이스터에그: 다음 층으로 이동");
+    }
+    if (e.ctrlKey && e.code === "Digit0") {
+      state.player.gold += 100;
+      log("이스터에그: 야근수당 +100 확보!");
+    }
   }
 
   if (state.mode === "skillSelect") {
@@ -430,22 +460,67 @@ function onWin() {
 
   const timeStr = UiSystem.formatDuration(state.runElapsedMs);
   const grade = UiSystem.gradeByTime(state.runElapsedMs);
+  const finalPay = state.player.gold || 0;
 
   overlayEl.classList.remove("hidden");
+  
+  // 공통 버튼 스타일 정의
+  const btnStyle = `
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    transition: transform 0.2s, background 0.2s;
+    min-width: 200px;
+  `;
+
   overlayEl.innerHTML = `
     <div style="text-align:center; background:rgba(0,0,0,0.85); padding:40px; border-radius:20px; border:3px solid #ffd700; box-shadow:0 0 30px rgba(255,215,0,0.3);">
       <h1 style="color:#ffd700; font-size:4rem; margin-bottom:10px; text-shadow:2px 2px 4px rgba(0,0,0,0.5);">퇴근 성공!</h1>
       <p style="font-size:1.5rem; color:#fff; margin-bottom:30px;">축하합니다! 무사히 회사를 탈출했습니다!</p>
       
-      <div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:15px; margin-bottom:30px; display:inline-block; min-width:320px;">
+      <div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:15px; margin-bottom:30px; display:inline-block; min-width:350px;">
         <p style="font-size:1.2rem; color:#ffd700; margin:10px 0;"><b>총 소요 시간:</b> <span style="font-size:1.8rem; color:#fff; margin-left:10px;">${timeStr}</span></p>
+        <p style="font-size:1.2rem; color:#ffd700; margin:10px 0;"><b>남은 야근수당:</b> <span style="font-size:1.8rem; color:#fff; margin-left:10px;">${finalPay.toLocaleString()}</span></p>
         <p style="font-size:1.2rem; color:#8de0c3; margin:10px 0;"><b>최종 평가:</b> <span style="font-size:1.8rem; color:#fff; margin-left:10px;">${grade}</span></p>
       </div>
       
       <br>
-      <button onclick="location.reload()" style="padding:15px 40px; font-size:1.3rem; cursor:pointer; background:#ffd700; color:#000; border:none; border-radius:10px; font-weight:bold; transition:transform 0.2s;">처음으로</button>
+      <div style="display:flex; justify-content:center; gap:20px;">
+        <button id="submit-ranking-btn" style="${btnStyle} background:#ffd700; color:#000;">명예의 전당 등록</button>
+        <button id="skip-ranking-btn" style="${btnStyle} background:#444; color:#fff;">그냥 퇴근하기</button>
+      </div>
     </div>
   `;
+
+  document.getElementById("submit-ranking-btn").onclick = async () => {
+    const btn = document.getElementById("submit-ranking-btn");
+    btn.disabled = true;
+    btn.innerText = "제출 중...";
+    
+    const result = await RankingSystem.submitRecord(state.player.codename, state.runElapsedMs, state.player.gold);
+    if (result.success) {
+      alert("명예의 퇴근 명부에 등록되었습니다!");
+      // 랭킹 보드 표시 후 닫으면 새로고침(초기화면)
+      UiSystem.showRankingBoard(overlayEl, RankingSystem, () => {
+        location.reload();
+      });
+    } else if (result.buffered) {
+      alert("서버 연결 실패로 인해 기록이 로컬에 저장되었습니다. 나중에 자동으로 전송됩니다.");
+      location.reload();
+    } else {
+      const errMsg = result.error || "등록에 실패했습니다.";
+      alert(`등록 실패: ${errMsg}`);
+      btn.disabled = false;
+      btn.innerText = "명예의 전당 등록";
+    }
+  };
+
+  document.getElementById("skip-ranking-btn").onclick = () => {
+    location.reload();
+  };
 }
 
 function showSkillSelection() {

@@ -69,6 +69,35 @@ python3 -m http.server 8000
 
 ---
 
+## 6. 🏆 글로벌 랭킹 시스템 서버 (Ranking System Backend)
+
+게임의 글로벌 랭킹을 관리하는 Node.js 서버 설정 및 실행 방법입니다.
+
+### **로컬 실행 (Local Development)**
+서버 디렉토리에서 의존성을 설치하고 직접 실행합니다.
+```bash
+cd server
+npm install
+node index.js
+```
+*   **포트**: 기본값 `3000` (환경 변수 `PORT`로 변경 가능)
+*   **데이터베이스**: `server/ranking.db` (SQLite) 파일에 자동 저장됩니다.
+
+### **Docker를 이용한 통합 실행**
+프로젝트 루트의 `docker-compose`를 사용하여 게임(Nginx)과 랭킹 서버를 동시에 구동합니다.
+```bash
+docker-compose -f docker/docker-compose.yml up --build
+```
+*   게임 접속: `http://localhost:8080`
+*   API 서버: `http://localhost:3000`
+
+### **주요 설정 (Environment Variables)**
+`server/.env` 파일을 통해 설정을 관리합니다.
+*   `PORT`: 서버 포트
+*   `RANKING_SECRET_KEY`: 클라이언트와 서버 간 데이터 무결성 검증을 위한 HMAC 비밀키 (보안을 위해 반드시 변경 권장)
+
+---
+
 ## 📊 참고 정보
 - **기본 이미지:** `nginx:alpine` (~23MB)
 - **최종 이미지 크기:** 약 30-50MB
