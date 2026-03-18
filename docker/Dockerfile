@@ -8,7 +8,7 @@ RUN npm install
 COPY playable-web ./playable-web/
 # Obfuscate JS files in playable-web and preserve structure
 # We output to a separate directory to avoid source contamination
-RUN npx javascript-obfuscator ./playable-web --output ./dist --compact true --string-array true --string-array-rotate true --string-array-shuffle true --string-array-threshold 0.75 --self-defending false
+RUN npx javascript-obfuscator ./playable-web --output ./dist --compact true --string-array true --string-array-rotate true --string-array-shuffle true --string-array-threshold 1 --string-array-encoding rc4 --control-flow-flattening true --control-flow-flattening-threshold 0.75 --dead-code-injection true --dead-code-injection-threshold 0.4 --debug-protection true --self-defending true --split-strings true --split-strings-chunk-length 5
 
 # 2. Production stage
 FROM nginx:alpine

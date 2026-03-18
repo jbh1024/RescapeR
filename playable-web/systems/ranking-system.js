@@ -3,7 +3,7 @@
  * 글로벌 랭킹(명예의 퇴근 명부) 관리를 위한 시스템 모듈
  */
 
-const API_BASE_URL = 'http://localhost:3000/api'; // 프로덕션 환경에서는 실제 서버 URL로 변경 필요
+const API_BASE_URL = '/rescaper-api'; // 호스트 Nginx가 ranking-server로 프록시
 const SECRET_KEY = 'rescaper_secret_token_2024';
 const STORAGE_QUEUE_KEY = 'rescaperRankingQueue';
 

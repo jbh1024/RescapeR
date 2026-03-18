@@ -276,13 +276,21 @@ function loop(now) {
   RenderSystem.drawPlayer(ctx, state.player, ART_ASSETS, ART_FRAME_SPECS, state.floor.theme);
   RenderSystem.drawFx(ctx, state);
   ctx.restore();
-  RenderSystem.drawHud(ctx, state.player, 
-    () => state.floor.info.name, 
-    state.runElapsedMs, 
-    WIDTH, 
+  RenderSystem.drawHud(ctx, state.player,
+    () => state.floor.info.name,
+    state.runElapsedMs,
+    WIDTH,
     state.floor.theme,
     state.floor.enemies.length
   );
+
+  // 우측 하단 바닥면 버전 표시
+  ctx.save();
+  ctx.font = "bold 10px monospace";
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.textAlign = "right";
+  ctx.fillText(APP_VERSION, WIDTH - 10, GROUND_Y - 5);
+  ctx.restore();
 
   requestAnimationFrame(loop);
 }
@@ -347,22 +355,12 @@ InputSystem.init((e, wasDown) => {
     }
   }
 
-  // 이스터에그: 층 이동 (Ctrl + [ / ]) - 정보 패널(H)이 열려있을 때만 작동
   const isPanelOpen = document.querySelector(".layout")?.classList.contains("show-panels");
-  
-  if (isPanelOpen) {
-    if (e.ctrlKey && e.code === "BracketLeft") {
-      prevFloor();
-      log("이스터에그: 이전 층으로 이동");
-    }
-    if (e.ctrlKey && e.code === "BracketRight") {
-      nextFloor();
-      log("이스터에그: 다음 층으로 이동");
-    }
-    if (e.ctrlKey && e.code === "Digit0") {
-      state.player.gold += 100;
-      log("이스터에그: 야근수당 +100 확보!");
-    }
+
+  if (isPanelOpen && e.ctrlKey) {
+    if (e.code === "BracketLeft") prevFloor();
+    if (e.code === "BracketRight") nextFloor();
+    if (e.code === "Digit0") state.player.gold += 100;
   }
 
   if (state.mode === "skillSelect") {

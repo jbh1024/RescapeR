@@ -1,30 +1,37 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const mysql = require('mysql2/promise');
 
-const dbPath = path.resolve(__dirname, 'ranking.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Database connection error:', err.message);
-  } else {
-    console.log('Connected to SQLite database.');
-  }
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '111111',
+  database: process.env.DB_NAME || 'rescaper',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 // 테이블 초기화
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS rankings (
-      rank_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      player_name TEXT NOT NULL,
-      clear_time REAL NOT NULL,
-      total_overtime_pay INTEGER NOT NULL,
-      checksum TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  
-  // 빠른 조회를 위한 인덱스 생성
-  db.run(`CREATE INDEX IF NOT EXISTS idx_rankings_sort ON rankings (clear_time ASC, total_overtime_pay DESC)`);
-});
+async function initDatabase() {
+  try {
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS rankings (
+        rank_id INT AUTO_INCREMENT PRIMARY KEY,
+        player_name VARCHAR(50) NOT NULL,
+        clear_time DOUBLE NOT NULL,
+        total_overtime_pay INT NOT NULL,
+        checksum VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_rankings_sort (clear_time ASC, total_overtime_pay DESC)
+      )
+    `);
+    console.log('Connected to MySQL database.');
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+    process.exit(1);
+  }
+}
 
-module.exports = db;
+initDatabase();
+
+module.exports = pool;

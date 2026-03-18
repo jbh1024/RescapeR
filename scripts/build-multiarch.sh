@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# RescapeR Multi-Architecture Docker Build Script
-# Creates an image that supports both ARM64 and AMD64.
+# RescapeR Docker Hub Deployment Script (Multi-Architecture)
+# Builds and pushes both game client and ranking server images for ARM64 and AMD64.
 # Usage: ./scripts/build-multiarch.sh [tag] [dockerhub_username]
 
 set -e
@@ -9,26 +9,37 @@ set -e
 # Change to the project root directory
 cd "$(dirname "$0")/.."
 
+# Default values
 TAG="${1:-latest}"
 DOCKER_USER="${2:-}"
-IMAGE_NAME="rescaper"
+GAME_IMAGE="rescaper"
+RANKING_IMAGE="rescaper-ranking"
 
-# Docker Hub username confirmation
+echo "🐳 RescapeR Docker Hub Deploy (Multi-Architecture)"
+echo "===================================================="
+
+# Check for Docker username
 if [ -z "$DOCKER_USER" ]; then
     if [ -f ".dockeruser" ]; then
         DOCKER_USER=$(cat .dockeruser)
+        echo "✓ Using saved Docker username: $DOCKER_USER"
     else
-        echo "❌ Error: Docker Hub username is required."
-        echo "Usage: ./scripts/build-multiarch.sh [tag] [dockerhub_username]"
-        exit 1
+        echo "Please enter your Docker Hub username:"
+        read -r DOCKER_USER
+        if [ -z "$DOCKER_USER" ]; then
+            echo "❌ Error: Docker username is required."
+            exit 1
+        fi
+        echo "$DOCKER_USER" > .dockeruser
+        echo "✓ Username saved to .dockeruser"
     fi
 fi
 
-echo "🐳 RescapeR Multi-Architecture Build"
-echo "==============================="
-echo "Tag: $TAG"
-echo "Docker Hub: $DOCKER_USER"
-echo "Platforms: linux/amd64, linux/arm64"
+echo ""
+echo "📋 Deployment Info:"
+echo "  - Game Image:    $DOCKER_USER/$GAME_IMAGE:$TAG"
+echo "  - Ranking Image: $DOCKER_USER/$RANKING_IMAGE:$TAG"
+echo "  - Platforms:     linux/amd64, linux/arm64"
 echo ""
 
 # Docker Buildx configuration
@@ -49,27 +60,51 @@ else
     echo "✓ Already logged in."
 fi
 
-# Multi-platform build and push
+# ==========================================
+# 1. Game Client Image
+# ==========================================
 echo ""
-echo "📦 Building multi-architecture image..."
-echo "  - linux/amd64 (x86_64 servers)"
-echo "  - linux/arm64 (M1/M2/M3 Mac, Raspberry Pi, AWS Graviton)"
-echo ""
+echo "=========================================="
+echo "📦 [1/2] Building game client (multi-arch)..."
+echo "=========================================="
 
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --file docker/Dockerfile \
-    --tag "$DOCKER_USER/$IMAGE_NAME:$TAG" \
-    --tag "$DOCKER_USER/$IMAGE_NAME:latest" \
+    --tag "$DOCKER_USER/$GAME_IMAGE:$TAG" \
+    --tag "$DOCKER_USER/$GAME_IMAGE:latest" \
     --push \
     .
 
+# ==========================================
+# 2. Ranking Server Image
+# ==========================================
 echo ""
-echo "✅ Multi-architecture build complete!"
+echo "=========================================="
+echo "📦 [2/2] Building ranking server (multi-arch)..."
+echo "=========================================="
+
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --file server/Dockerfile \
+    --tag "$DOCKER_USER/$RANKING_IMAGE:$TAG" \
+    --tag "$DOCKER_USER/$RANKING_IMAGE:latest" \
+    --push \
+    ./server
+
+# ==========================================
+# Completion
+# ==========================================
 echo ""
-echo "📎 Supported Platforms:"
-docker buildx imagetools inspect "$DOCKER_USER/$IMAGE_NAME:$TAG" | grep -A 5 "Platforms"
+echo "✅ All images deployed!"
 echo ""
-echo "🧪 Running tests:"
-echo "  AMD64 Server: docker run -p 8080:80 $DOCKER_USER/$IMAGE_NAME:$TAG"
-echo "  ARM64 (M1/M2/M3): docker run -p 8080:80 $DOCKER_USER/$IMAGE_NAME:$TAG""
+echo "📎 Pull commands:"
+echo "  docker pull $DOCKER_USER/$GAME_IMAGE:$TAG"
+echo "  docker pull $DOCKER_USER/$RANKING_IMAGE:$TAG"
+echo ""
+echo "🌐 Docker Hub:"
+echo "  https://hub.docker.com/r/$DOCKER_USER/$GAME_IMAGE"
+echo "  https://hub.docker.com/r/$DOCKER_USER/$RANKING_IMAGE"
+echo ""
+echo "🚀 Server deploy:"
+echo "  docker compose -f docker/docker-compose.yml pull && docker compose -f docker/docker-compose.yml up -d"

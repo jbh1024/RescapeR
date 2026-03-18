@@ -17,24 +17,23 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // 랭킹 조회 (Top 10)
-app.get('/api/rankings', (req, res) => {
-  const sql = `
-    SELECT player_name, clear_time, total_overtime_pay, created_at 
-    FROM rankings 
-    ORDER BY clear_time ASC, total_overtime_pay DESC 
-    LIMIT 10
-  `;
-  
-  db.all(sql, [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: '데이터베이스 조회 중 오류가 발생했습니다.' });
-    }
+app.get('/rescaper-api/rankings', async (req, res) => {
+  try {
+    const [rows] = await db.execute(`
+      SELECT player_name, clear_time, total_overtime_pay, created_at
+      FROM rankings
+      ORDER BY clear_time ASC, total_overtime_pay DESC
+      LIMIT 10
+    `);
     res.json({ top10: rows });
-  });
+  } catch (err) {
+    console.error('[DB Error]', err.message);
+    return res.status(500).json({ error: '데이터베이스 조회 중 오류가 발생했습니다.' });
+  }
 });
 
 // 랭킹 등록
-app.post('/api/rankings', (req, res) => {
+app.post('/rescaper-api/rankings', async (req, res) => {
   const { player_name, clear_time, total_overtime_pay, checksum } = req.body;
   console.log('[API] Received ranking submission:', { player_name, clear_time, total_overtime_pay, checksum });
 
@@ -54,7 +53,7 @@ app.post('/api/rankings', (req, res) => {
   // 부동 소수점 오차 방지를 위해 문자열 포맷 통일
   const timeStr = parseFloat(clear_time).toFixed(2);
   const dataString = `${player_name}:${timeStr}:${total_overtime_pay}`;
-  
+
   // 클라이언트의 Web Crypto API (UTF-8)와 일치시키기 위해 명시적 파싱
   const expectedChecksum = CryptoJS.HmacSHA256(
     CryptoJS.enc.Utf8.parse(dataString),
@@ -67,24 +66,23 @@ app.post('/api/rankings', (req, res) => {
     console.warn(` - Expected: ${expectedChecksum}`);
     console.warn(` - Data String used: "${dataString}"`);
     console.warn(` - Key used: "${SECRET_KEY}"`);
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: '데이터 무결성 검증에 실패했습니다.',
       debug: process.env.NODE_ENV === 'development' ? { expected: expectedChecksum, usedString: dataString } : undefined
     });
   }
 
   // 4. 데이터 저장
-  const sql = `
-    INSERT INTO rankings (player_name, clear_time, total_overtime_pay, checksum) 
-    VALUES (?, ?, ?, ?)
-  `;
-  
-  db.run(sql, [player_name, clear_time, total_overtime_pay, checksum], function(err) {
-    if (err) {
-      return res.status(500).json({ error: '기록 저장 중 오류가 발생했습니다.' });
-    }
-    res.json({ success: true, rank_id: this.lastID });
-  });
+  try {
+    const [result] = await db.execute(
+      'INSERT INTO rankings (player_name, clear_time, total_overtime_pay, checksum) VALUES (?, ?, ?, ?)',
+      [player_name, clear_time, total_overtime_pay, checksum]
+    );
+    res.json({ success: true, rank_id: result.insertId });
+  } catch (err) {
+    console.error('[DB Error]', err.message);
+    return res.status(500).json({ error: '기록 저장 중 오류가 발생했습니다.' });
+  }
 });
 
 app.listen(PORT, () => {

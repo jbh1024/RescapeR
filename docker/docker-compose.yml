@@ -1,33 +1,63 @@
-version: '3.8'
-
 services:
   ranking-server:
-    build:
-      context: ../server
-      dockerfile: Dockerfile
+    image: jbh1024/rescaper-ranking:latest
     container_name: rescaper-ranking-api
-    ports:
-      - "3000:3000"
-    volumes:
-      - ../server/ranking.db:/app/ranking.db
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
-      - RANKING_SECRET_KEY=rescaper_secret_token_2024
+      - RANKING_SECRET_KEY=${RANKING_SECRET_KEY:-rescaper_secret_token_2024}
+      - DB_HOST=${DB_HOST:-host.docker.internal}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER:-root}
+      - DB_PASSWORD=${DB_PASSWORD:-111111}
+      - DB_NAME=${DB_NAME:-rescaper}
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/rescaper-api/rankings"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   rescaper:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: jbh1024/rescaper:latest
     container_name: rescaper-game
     ports:
-      - "8080:80"
+      - "4431:80"
     depends_on:
-      - ranking-server
+      ranking-server:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

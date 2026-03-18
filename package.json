@@ -9,7 +9,7 @@
     "smoke": "./playable-web/smoke-check.sh",
     "serve": "python3 -m http.server 8000",
     "dev": "./scripts/deploy.sh dev",
-    "obfuscate": "javascript-obfuscator ./playable-web --output ./playable-web/dist --compact true --string-array true --string-array-rotate true --string-array-shuffle true --string-array-threshold 0.75"
+    "obfuscate": "javascript-obfuscator ./playable-web --output ./playable-web/dist --compact true --string-array true --string-array-rotate true --string-array-shuffle true --string-array-threshold 1 --string-array-encoding rc4 --control-flow-flattening true --control-flow-flattening-threshold 0.75 --dead-code-injection true --dead-code-injection-threshold 0.4 --debug-protection true --self-defending true --split-strings true --split-strings-chunk-length 5"
   },
   "repository": {
     "type": "git",
