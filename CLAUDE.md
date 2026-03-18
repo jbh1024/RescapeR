@@ -34,7 +34,7 @@ npm run obfuscate
 cd server && npm install && node index.js   # http://localhost:3000
 
 # Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
-./scripts/build-multiarch.sh v1.1.1 yourusername
+./scripts/build-multiarch.sh v1.2.0 yourusername
 
 # 서버에서 실행 (Docker Hub에서 pull)
 docker compose -f docker/docker-compose.yml pull && docker compose -f docker/docker-compose.yml up -d
