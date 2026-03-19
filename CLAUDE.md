@@ -9,7 +9,7 @@ RescapeR는 "퇴근을 위해 회사라는 던전을 탈출하라!" 테마의 2D
 ## 빌드 및 실행
 
 ```bash
-# 로컬 개발 서버 (python HTTP)
+# 로컬 개발 서버 (serve)
 npm run serve              # http://localhost:8000/playable-web/
 
 # Docker 개발 모드
@@ -72,7 +72,7 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 모든 런타임 데이터는 `game.js`의 `state` 객체에서 관리. 전역 변수 사용 금지. `window.gameState = state`로 테스트용 노출.
 
 ### 테스트 환경
-Playwright 기반 E2E 테스트. `playwright.config.js`에서 python HTTP 서버를 자동 기동하여 `http://localhost:8000/playable-web/`을 대상으로 테스트.
+Playwright 기반 E2E 테스트. `playwright.config.js`에서 `serve` 정적 서버를 자동 기동하여 `http://localhost:8000/playable-web/`을 대상으로 테스트.
 
 ## 개발 규칙
 

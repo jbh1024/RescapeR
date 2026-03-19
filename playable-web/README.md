@@ -5,7 +5,7 @@
 ## 🚀 빠른 실행
 프로젝트 루트에서 다음 명령어를 실행하십시오:
 ```bash
-python3 -m http.server 8000
+npm run serve
 # 접속 주소: http://localhost:8000/playable-web/
 ```
 
