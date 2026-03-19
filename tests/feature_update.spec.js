@@ -19,12 +19,16 @@ test.describe('RescapeR Feature Updates', () => {
     
     // 게임 시작 로그 확인
     const logElement = page.locator('#log');
-    await expect(logElement).toContainText('탈출을 시작합니다', { timeout: 10000 });
+    await expect(logElement).toContainText('탈출을 시작합니다', { timeout: 20000 });
+
+    // 이스터에그 활성화를 위해 UI 패널 열기 (h 키)
+    await page.keyboard.press('h');
+    await page.waitForTimeout(200);
   });
 
   test('Easter egg keys (Ctrl + [ / Ctrl + ]) trigger floor transition', async ({ page }) => {
     const logElement = page.locator('#log');
-    
+
     // 1. Ctrl + ] (다음 층 이동) 테스트
     await page.keyboard.down('Control');
     await page.keyboard.press(']');
@@ -60,8 +64,8 @@ test.describe('RescapeR Feature Updates', () => {
       await page.waitForTimeout(100);
     }
 
-    // "퇴근 성공!" 텍스트 확인
-    await expect(overlay).toContainText('퇴근 성공!', { timeout: 10000 });
+    // 엔딩 시네마틱 후 "퇴근 성공!" 텍스트 확인
+    await expect(overlay).toContainText('퇴근 성공!', { timeout: 25000 });
     
     // 총 소요 시간 및 최종 평가 텍스트가 표시되는지 확인
     await expect(overlay).toContainText('총 소요 시간:', { timeout: 5000 });

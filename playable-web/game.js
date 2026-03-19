@@ -24,7 +24,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const GROUND_Y = HEIGHT - 75;
 const WORLD_WIDTH = 3200;
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v1.2.1";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const META_STORAGE_KEY = "rescaperMeta";
 
@@ -48,6 +48,87 @@ function log(msg) {
   if (logEl) logEl.innerHTML = state.logs.map(x => `<div>${x}</div>`).join("");
 }
 
+function showCinematic(lines, onComplete) {
+  overlayEl.classList.remove("hidden");
+  overlayEl.innerHTML = `
+    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#000;">
+      <div id="cinematic-text" style="text-align:center; color:#ccc; font-size:1.7rem; line-height:2.2; letter-spacing:0.05em;">
+      </div>
+    </div>
+  `;
+
+  const textEl = document.getElementById("cinematic-text");
+  const line = lines[Math.floor(Math.random() * lines.length)];
+
+  const lineEl = document.createElement("div");
+  lineEl.style.opacity = "1";
+  textEl.appendChild(lineEl);
+
+  let charIdx = 0;
+  function typeNext() {
+    if (charIdx < line.length) {
+      lineEl.textContent += line[charIdx];
+      charIdx++;
+      setTimeout(typeNext, 60);
+    } else {
+      setTimeout(() => {
+        lineEl.style.transition = "opacity 0.8s ease-out";
+        lineEl.style.opacity = "0";
+        setTimeout(() => {
+          overlayEl.classList.add("hidden");
+          onComplete();
+        }, 800);
+      }, 1000);
+    }
+  }
+
+  setTimeout(typeNext, 500);
+}
+
+const OPENING_LINES = [
+  "피곤하다.. 집에가고싶어 죽겠다.......",
+  "점심 뭐먹지.......",
+  "아.. 월요일이 또 왔다.......",
+  "퇴사 버튼은 어디있지.......",
+  "오늘도 야근이라고..? 내 계획에 없던 일정인데...",
+  "연차 쓰고싶다.. 영원히..",
+  "회의 초대가 또왔네...? 메일로 하지..",
+  "어제 conflict 난 18개부터 잡아야겠네....",
+  "이상하네 출근도 안했는데 벌써 퇴근하고싶네..",
+  "오늘 배포라니.. 난 처음듣는데..?",
+  "장애 알림 울리지마.. 제발..",
+  "...? 회의를 왜 이시간에 잡아서 초대하지..?",
+  "어제 저녁에 요청하지않았나..? 무슨생각으로 지금 확인하자는거지..",
+  "태그 좀 그만... 아직 출근도 안했는데..",
+  "나랑 전쟁하는 대상이 레거시 코드인가 레거시 인간인가..",
+  "일단 커피부터 한잔하고...싶다....",
+  "점심시간만 바라본다.. 오늘 메뉴 뭐더라...",
+  "뭔 '간단한 수정'이야.. 본인이하던가..",
+  "kimi는 왜 이걸 못 만들지...",
+  "하.. 밤새 코딩하는 꿈을 꿨어...",
+];
+
+const ENDING_LINES = [
+  "드디어.. 퇴근이다.... 아 뭐야 눈에서 땀나네ㅠ",
+  "자유다!! ...내일 또 출근이지만..",
+  "오늘 하루도 살아남았다.. 나 자신 칭찬해..",
+  "빨리 집에가서 치맥해야지~!",
+  "쩝.. 또 내가 사무실 불끄고 가는구만..",
+  "무사퇴근!! 퇴사 버튼누를뻔;;",
+  "내일의 나.. 부탁해!!",
+  "회사 문 나서는 순간.. 세상이 빛난다..",
+  "git commit -m '퇴근' && git -f push",
+  "아.. 오늘 하루도 길었다... 빨리 주말!! 주말!!",
+];
+
+function showOpening(onComplete) {
+  showCinematic(OPENING_LINES, onComplete);
+}
+
+function showEnding(onComplete) {
+  showCinematic(ENDING_LINES, onComplete);
+}
+
 function showNameInput() {
   state.mode = "nameInput";
   state.running = false;
@@ -68,7 +149,7 @@ function showNameInput() {
 
   const startWithInput = () => {
     const name = input.value.trim() || "야근러";
-    startRun(name);
+    showOpening(() => startRun(name));
   };
 
   btn.onclick = startWithInput;
@@ -452,16 +533,21 @@ function onDeath() {
 function onWin() {
   state.mode = "clear";
   state.running = false;
-  
+
   // 클리어 시 진행 중인 런 세이브 삭제
   SaveSystem.clearRunSnapshot(localStorage, SAVE_STORAGE_KEY);
 
+  // 엔딩 시퀀스 후 결과 화면 표시
+  showEnding(() => showClearScreen());
+}
+
+function showClearScreen() {
   const timeStr = UiSystem.formatDuration(state.runElapsedMs);
   const grade = UiSystem.gradeByTime(state.runElapsedMs);
   const finalPay = state.player.gold || 0;
 
   overlayEl.classList.remove("hidden");
-  
+
   // 공통 버튼 스타일 정의
   const btnStyle = `
     padding: 15px 30px;

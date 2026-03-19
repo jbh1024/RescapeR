@@ -35,7 +35,7 @@ python3 -m http.server 8000
 ./scripts/build-multiarch.sh
 
 # 특정 버전 태그로 배포 (사용자명 명시)
-./scripts/build-multiarch.sh v1.2.0 yourusername
+./scripts/build-multiarch.sh v1.2.1 yourusername
 ```
 
 ### **배포되는 이미지**
@@ -52,7 +52,7 @@ python3 -m http.server 8000
 이 오류는 빌드 아키텍처와 실행 서버 아키텍처가 다를 때 발생합니다 (예: Mac M1에서 빌드 후 Intel 서버에서 실행).
 - **해결 1:** `build-multiarch.sh` 스크립트를 사용하여 빌드하십시오.
 - **해결 2:** 특정 플랫폼을 명시하여 빌드하십시오.
-  `./scripts/build-specific-platform.sh v1.2.0 linux/amd64 yourusername`
+  `./scripts/build-specific-platform.sh v1.2.1 linux/amd64 yourusername`
 
 ---
 
@@ -75,12 +75,19 @@ node index.js
 *   **포트**: 기본값 `3000` (환경 변수 `PORT`로 변경 가능)
 *   **데이터베이스**: `server/ranking.db` (SQLite) 파일에 자동 저장됩니다.
 
-### **Docker를 이용한 서버 배포**
-서버에 `docker-compose.yml` 파일만 배치한 후 Docker Hub에서 이미지를 pull하여 실행합니다.
+### **Docker 로컬 빌드 (개발용)**
+로컬 소스 코드에서 직접 빌드하여 실행합니다.
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+*   게임 접속: `http://localhost:8080`
+
+### **Docker를 이용한 프로덕션 배포**
+서버에 `docker-compose.prod.yml` 파일만 배치한 후 Docker Hub에서 이미지를 pull하여 실행합니다.
 ```bash
 # 이미지 pull 및 실행
-docker compose -f docker/docker-compose.yml pull
-docker compose -f docker/docker-compose.yml up -d
+docker compose -f docker/docker-compose.prod.yml pull
+docker compose -f docker/docker-compose.prod.yml up -d
 ```
 *   게임 접속: `http://localhost:4431` (호스트 Nginx가 SSL 프록시)
 *   랭킹 API: 게임 컨테이너 내부 Nginx가 `/rescaper-api/`를 랭킹 서버로 프록시 (외부 미노출)

@@ -33,11 +33,14 @@ npm run obfuscate
 # 랭킹 서버 로컬 실행
 cd server && npm install && node index.js   # http://localhost:3000
 
-# Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
-./scripts/build-multiarch.sh v1.2.0 yourusername
+# Docker 로컬 빌드 (개발용)
+docker compose -f docker/docker-compose.yml up --build   # http://localhost:8080
 
-# 서버에서 실행 (Docker Hub에서 pull)
-docker compose -f docker/docker-compose.yml pull && docker compose -f docker/docker-compose.yml up -d
+# Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
+./scripts/build-multiarch.sh v1.2.1 yourusername
+
+# 프로덕션 실행 (Docker Hub에서 pull)
+docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
 ## 아키텍처
@@ -88,8 +91,11 @@ Playwright 기반 E2E 테스트. `playwright.config.js`에서 python HTTP 서버
 - 최소 클리어 타임 30초 미만은 서버에서 차단
 - 오프라인 시 localStorage에 버퍼링 후 재접속 시 재전송
 
-### 게임 시작 흐름
-매 게임 시작(`startRun`) 시 `localStorage.clear()`를 통해 로컬 데이터 초기화
+### 게임 흐름 (시네마틱)
+- **오프닝**: 사원명 입력 후 게임 시작 시, `OPENING_LINES` 중 랜덤 1개가 타이핑 효과로 표시 → 페이드아웃 후 게임 시작
+- **엔딩**: 9층 보스 클리어 후 `ENDING_LINES` 중 랜덤 1개가 타이핑 효과로 표시 → 페이드아웃 후 퇴근 성공 화면(기록 저장/초기화면)
+- 시네마틱 공통 함수: `showCinematic(lines, onComplete)` → `showOpening` / `showEnding` 래퍼
+- 매 게임 시작(`startRun`) 시 `localStorage.clear()`를 통해 로컬 데이터 초기화
 
 ## 참조 문서
 - `docs/PRD.md`: 제품 요구사항 및 기술 아키텍처
