@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Test results
+test-results/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+
+# Docker
+.dockeruser
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ranking DB (local dev)
+server/ranking.db
