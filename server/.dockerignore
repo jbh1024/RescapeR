@@ -2,4 +2,4 @@ node_modules
 npm-debug.log
 ranking.db
 ranking.db-journal
-.env
+../docker/.env

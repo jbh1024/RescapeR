@@ -1,6 +1,6 @@
 {
   "name": "rescaper",
-  "version": "1.1.1",
+  "version": "1.2.2",
   "description": "IT 회사 탈출 2D 로그라이트 액션 게임 - RescapeR",
   "main": "playable-web/game.js",
   "scripts": {
