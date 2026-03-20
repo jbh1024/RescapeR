@@ -37,10 +37,10 @@ cd server && npm install && node index.js   # http://localhost:3000
 docker compose -f docker/docker-compose.yml up --build   # http://localhost:8080
 
 # Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
-./scripts/build-multiarch.sh v1.2.1 yourusername
+./scripts/build-multiarch.sh v1.2.2 yourusername
 
 # 프로덕션 실행 (Docker Hub에서 pull, 버전 지정 가능)
-RESCAPER_TAG=v1.2.1 docker compose -f docker/docker-compose.prod.yml up -d
+RESCAPER_TAG=v1.2.2 docker compose -f docker/docker-compose.prod.yml up -d
 # 또는 latest 사용
 docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docker/docker-compose.prod.yml up -d
 ```
