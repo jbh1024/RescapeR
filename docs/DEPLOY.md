@@ -129,6 +129,11 @@ docker compose -f docker/docker-compose.prod.yml up -d
     # 강력한 키 생성
     openssl rand -base64 32
     ```
+*   `CORS_ORIGINS`: 허용할 오리진 목록 (콤마 구분). 미설정 시 localhost만 허용
+    ```yaml
+    # docker-compose.prod.yml 예시
+    - CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+    ```
 *   `DB_PASSWORD`: 데이터베이스 비밀번호 (프로덕션에서는 반드시 강력한 값 사용)
 
 > **주의**: `.env` 파일은 Git에 커밋하지 않습니다. `.env.example`만 참조용으로 커밋되어 있습니다.
@@ -138,4 +143,4 @@ docker compose -f docker/docker-compose.prod.yml up -d
 ## 📊 참고 정보
 - **기본 이미지:** `nginx:alpine` (~23MB)
 - **최종 이미지 크기:** 약 30-50MB
-- **보안:** Nginx에 CSP, `X-Frame-Options DENY`, `X-Content-Type-Options nosniff`, `Referrer-Policy` 등 보안 헤더가 적용되어 있습니다. 클라이언트에도 CSP 메타 태그가 포함되어 있습니다.
+- **보안:** Nginx에 CSP, `X-Frame-Options DENY`, `X-Content-Type-Options nosniff`, `Referrer-Policy` 등 보안 헤더가 적용되어 있습니다. 클라이언트에도 CSP 메타 태그가 포함되어 있습니다. 서버에는 Rate Limiting(POST 5회/분, GET 30회/분), CORS 화이트리스트, 입력 검증이 적용되어 있습니다.

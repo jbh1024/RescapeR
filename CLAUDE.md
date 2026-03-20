@@ -68,10 +68,10 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 | `input-system.js` | 키보드 입력 처리 |
 | `fx-system.js` | 파티클, 데미지 텍스트, 화면 흔들림 |
 | `audio-system.js` | 사운드/BGM 관리 |
-| `save-system.js` | localStorage 기반 저장/로드 |
+| `save-system.js` | localStorage 기반 저장/로드, 메타데이터 무결성 검증 |
 
 ### 상태 관리
-모든 런타임 데이터는 `game.js`의 `state` 객체에서 관리. 전역 변수 사용 금지. `window.gameState = state`로 테스트용 노출.
+모든 런타임 데이터는 `game.js`의 `state` 객체에서 관리. 전역 변수 사용 금지. `window.gameState`는 `?__test__` URL 파라미터가 있을 때만 노출 (테스트 전용).
 
 ### 테스트 환경
 Playwright 기반 E2E 테스트. `playwright.config.js`에서 `http-server` 정적 서버를 자동 기동하여 `http://127.0.0.1:8000/playable-web/`을 대상으로 테스트.
@@ -108,12 +108,23 @@ Jenkins 프리스타일 job 3개로 파이프라인 운영:
 - **XSS 방어**: `escapeHtml()` (ui-system.js) — 서버 데이터를 innerHTML에 삽입 시 필수 사용
 - **인라인 핸들러 금지**: `onclick` 등 사용 금지 → `addEventListener` 사용
 - **환경변수**: `.env` 파일은 Git에 커밋하지 않음 (`.env.example`만 커밋)
+- **서버 입력 검증**: clear_time(30~86400), total_overtime_pay(0~999999) 타입/범위 강제
+- **Rate Limiting**: POST 5회/분, GET 30회/분 (express-rate-limit)
+- **CORS**: 화이트리스트 방식 (`CORS_ORIGINS` 환경변수), 기본값 localhost만 허용
+- **전역 state 보호**: `window.gameState`는 `?__test__` 파라미터 시에만 노출
+- **localStorage 무결성**: `save-system.js`의 `_validateMeta()`로 타입/범위 검증 후 로드
 
 ### 게임 흐름 (시네마틱)
 - **오프닝**: 사원명 입력 후 게임 시작 시, `OPENING_LINES` 중 랜덤 1개가 타이핑 효과로 표시 → 페이드아웃 후 게임 시작
 - **엔딩**: 9층 보스 클리어 후 `ENDING_LINES` 중 랜덤 1개가 타이핑 효과로 표시 → 페이드아웃 후 퇴근 성공 화면(기록 저장/초기화면)
 - 시네마틱 공통 함수: `showCinematic(lines, onComplete)` → `showOpening` / `showEnding` 래퍼
 - 매 게임 시작(`startRun`) 시 `localStorage.clear()`를 통해 로컬 데이터 초기화
+
+### 테스트 필수
+- 모든 기능 수정 및 개발은 테스트를 모두 pass 하고 검증이 완료가 되어야 작업이 완료 된 것으로 간주한다.
+
+### 문서 최신화
+- 사용자의 요청이나 버그의 수정으로 게임관련 사항(게임 디자인, 아키텍처, 보안사항)이 변경 된 경우. 관련 문서를 항상 최신화 하는 작업을 한다.
 
 ## 참조 문서
 - `docs/PRD.md`: 제품 요구사항 및 기술 아키텍처

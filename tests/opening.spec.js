@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Opening Sequence', () => {
   test('오프닝 텍스트가 타이핑 효과로 표시된 후 게임이 시작된다', async ({ page }) => {
-    await page.goto('./index.html');
+    await page.goto('./index.html?__test__');
 
     const input = page.locator('#player-name-input');
     await expect(input).toBeVisible();
@@ -27,7 +27,7 @@ test.describe('Opening Sequence', () => {
 
 test.describe('Ending Sequence', () => {
   test('보스 클리어 후 엔딩 멘트가 표시되고 퇴근 성공 화면이 나온다', async ({ page }) => {
-    await page.goto('./index.html');
+    await page.goto('./index.html?__test__');
 
     const input = page.locator('#player-name-input');
     await expect(input).toBeVisible();

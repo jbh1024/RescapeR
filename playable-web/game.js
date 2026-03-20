@@ -38,7 +38,10 @@ const state = {
   runDeathCount: 0,
   meta: SaveSystem.loadMeta(localStorage, META_STORAGE_KEY)
 };
-window.gameState = state; // Expose for testing
+// 테스트 환경에서만 state 노출 (?__test__ 파라미터 필요)
+if (new URL(location.href).searchParams.has('__test__')) {
+  window.gameState = state;
+}
 
 function log(msg) {
   const time = new Date().toLocaleTimeString("ko-KR", { hour12: false });

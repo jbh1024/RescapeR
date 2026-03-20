@@ -8,7 +8,7 @@ test.describe('RescapeR Feature Updates', () => {
     });
 
     // 게임 시작 페이지로 이동
-    await page.goto('./index.html');
+    await page.goto('./index.html?__test__');
 
     // 사원명 입력 및 게임 시작 (기본값 '야근러'로 시작)
     const input = page.locator('#player-name-input');

@@ -7,7 +7,7 @@ test.describe('RescapeR Ranking System Verification', () => {
       console.log(`[BROWSER] ${msg.type()}: ${msg.text()}`);
     });
 
-    await page.goto('http://localhost:8000/playable-web/index.html');
+    await page.goto('http://localhost:8000/playable-web/index.html?__test__');
 
     const input = page.locator('#player-name-input');
     await expect(input).toBeVisible({ timeout: 10000 });

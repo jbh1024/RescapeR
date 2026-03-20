@@ -11,7 +11,7 @@ test('game logic initializes and logs start message', async ({ page }) => {
     console.error('Browser page error:', err.message);
   });
 
-  await page.goto('./index.html');
+  await page.goto('./index.html?__test__');
 
   // 사원명 입력 후 게임 시작 (오프닝 시네마틱 포함)
   const input = page.locator('#player-name-input');

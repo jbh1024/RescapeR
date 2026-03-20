@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const CryptoJS = require('crypto-js');
 const db = require('./db');
 
@@ -16,12 +17,44 @@ if (!SECRET_KEY) {
 }
 
 app.use(helmet());
-app.use(cors());
+
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:8000', 'http://localhost:8080'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy violation'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+}));
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+// Rate Limiting
+const submitLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: '너무 많은 요청입니다. 잠시 후 다시 시도하세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const queryLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: '너무 많은 요청입니다. 잠시 후 다시 시도하세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // 랭킹 조회 (Top 10)
-app.get('/rescaper-api/rankings', async (req, res) => {
+app.get('/rescaper-api/rankings', queryLimiter, async (req, res) => {
   try {
     const [rows] = await db.execute(`
       SELECT player_name, clear_time, total_overtime_pay, created_at
@@ -37,7 +70,7 @@ app.get('/rescaper-api/rankings', async (req, res) => {
 });
 
 // 랭킹 등록
-app.post('/rescaper-api/rankings', async (req, res) => {
+app.post('/rescaper-api/rankings', submitLimiter, async (req, res) => {
   const { player_name, clear_time, total_overtime_pay } = req.body;
 
   // 1. 필수 값 검증
@@ -53,14 +86,21 @@ app.post('/rescaper-api/rankings', async (req, res) => {
     return res.status(400).json({ error: '사원명에 HTML 태그를 사용할 수 없습니다.' });
   }
 
-  // 3. 물리적 불가능 기록 필터링 (최소 30초 이상)
-  if (clear_time < 30) {
+  // 3. clear_time 타입/범위 검증
+  const parsedTime = parseFloat(clear_time);
+  if (!Number.isFinite(parsedTime) || parsedTime < 30 || parsedTime > 86400) {
     return res.status(400).json({ error: '비정상적인 기록입니다.' });
   }
 
-  // 4. 서버에서 체크섬 생성 (데이터 무결성 서명)
-  const timeStr = parseFloat(clear_time).toFixed(2);
-  const payStr = parseInt(total_overtime_pay).toString();
+  // 4. total_overtime_pay 타입/범위 검증
+  const parsedPay = parseInt(total_overtime_pay, 10);
+  if (!Number.isInteger(parsedPay) || parsedPay < 0 || parsedPay > 999999) {
+    return res.status(400).json({ error: '야근수당이 유효하지 않습니다.' });
+  }
+
+  // 5. 서버에서 체크섬 생성 (데이터 무결성 서명)
+  const timeStr = parsedTime.toFixed(2);
+  const payStr = parsedPay.toString();
   const dataString = `${player_name}:${timeStr}:${payStr}`;
 
   const checksum = CryptoJS.HmacSHA256(
@@ -68,11 +108,11 @@ app.post('/rescaper-api/rankings', async (req, res) => {
     CryptoJS.enc.Utf8.parse(SECRET_KEY)
   ).toString(CryptoJS.enc.Hex);
 
-  // 5. 데이터 저장
+  // 6. 데이터 저장 (파싱된 값 사용)
   try {
     const [result] = await db.execute(
       'INSERT INTO rankings (player_name, clear_time, total_overtime_pay, checksum) VALUES (?, ?, ?, ?)',
-      [player_name, clear_time, total_overtime_pay, checksum]
+      [player_name, parsedTime, parsedPay, checksum]
     );
     res.json({ success: true, rank_id: result.insertId });
   } catch (err) {

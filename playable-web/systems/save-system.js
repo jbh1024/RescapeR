@@ -17,7 +17,7 @@ export const RescapeRSaveSystem = {
     try {
       const s = storage.getItem(key);
       const meta = s ? JSON.parse(s) : {};
-      return {
+      return this._validateMeta({
         totalClears: 0,
         bestTimeMs: 0,
         totalPlayTime: 0,
@@ -31,7 +31,7 @@ export const RescapeRSaveSystem = {
         clearRecords: [],
         ranking: { totalClears: 0, bestClearTimeMs: 0, lastClearTimeMs: 0 },
         ...meta,
-      };
+      });
     } catch {
       return {
         totalClears: 0,
@@ -48,6 +48,59 @@ export const RescapeRSaveSystem = {
         ranking: { totalClears: 0, bestClearTimeMs: 0, lastClearTimeMs: 0 },
       };
     }
+  },
+
+  _validateMeta(meta) {
+    const rules = {
+      totalClears:   { min: 0, max: 99999 },
+      bestTimeMs:    { min: 0, max: 86400000 },
+      totalPlayTime: { min: 0, max: 999999999 },
+      deathCount:    { min: 0, max: 99999 },
+      recentDeaths:  { min: 0, max: 99999 },
+      maxHpBonus:    { min: 0, max: 500 },
+      speedBonus:    { min: 0, max: 1 },
+      damageBonus:   { min: 0, max: 1 },
+    };
+
+    for (const [key, rule] of Object.entries(rules)) {
+      const val = meta[key];
+      if (typeof val !== 'number' || !Number.isFinite(val) || val < rule.min || val > rule.max) {
+        meta[key] = rule.min;
+      }
+    }
+
+    // items 객체 검증
+    if (!meta.items || typeof meta.items !== 'object') {
+      meta.items = { cpu: 0, ram: 0, badge: 0 };
+    }
+    for (const k of ['cpu', 'ram', 'badge']) {
+      const v = meta.items[k];
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 999) {
+        meta.items[k] = 0;
+      }
+    }
+
+    // 배열 필드 검증
+    if (!Array.isArray(meta.unlockedItems)) meta.unlockedItems = [];
+    if (!Array.isArray(meta.clearRecords)) meta.clearRecords = [];
+
+    // ranking 객체 검증
+    if (!meta.ranking || typeof meta.ranking !== 'object') {
+      meta.ranking = { totalClears: 0, bestClearTimeMs: 0, lastClearTimeMs: 0 };
+    }
+    const rankingRules = {
+      totalClears:    { min: 0, max: 99999 },
+      bestClearTimeMs: { min: 0, max: 86400000 },
+      lastClearTimeMs: { min: 0, max: 86400000 },
+    };
+    for (const [key, rule] of Object.entries(rankingRules)) {
+      const val = meta.ranking[key];
+      if (typeof val !== 'number' || !Number.isFinite(val) || val < rule.min || val > rule.max) {
+        meta.ranking[key] = rule.min;
+      }
+    }
+
+    return meta;
   },
 
   saveMeta(storage, key, meta) {

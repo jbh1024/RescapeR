@@ -374,15 +374,368 @@ document.getElementById("restart-btn").addEventListener("click", () => location.
 
 ---
 
-## Phase 2 예고 (다음 단계)
+## Phase 2: MEDIUM 심각도 취약점 수정
 
-Phase 1 완료 후 진행할 MEDIUM 심각도 항목:
+> Phase 1 완료 (`dba7d75`). Phase 2는 MEDIUM 심각도 6건 중 4건을 대상으로 한다.
+> (2-2 DB 기본 비밀번호, 2-8 개발 치트는 제외)
 
-| 순서 | 취약점 | 위치 |
-|------|--------|------|
-| 2-1 | 서버 입력 검증 강화 (타입/범위) | `server/index.js:40-50` |
-| 2-2 | DB 기본 비밀번호 제거 | `db.js:7`, `docker-compose.prod.yml:13` |
-| 2-3 | Rate Limiting 추가 | `server/index.js` |
-| 2-4 | 전역 state 노출 제거 | `game.js:41` |
-| 2-5 | 민감 정보 로깅 제거 | `server/index.js:64-68` |
-| 2-6 | CORS 화이트리스트 설정 | `server/index.js:15` |
+### Phase 2 작업 개요
+
+| 순서 | 심각도 | 취약점 | 영향 범위 | 수정 난이도 | 예상 파일 변경 |
+|------|--------|--------|-----------|-------------|---------------|
+| 2-1 | MEDIUM | 서버 입력 검증 강화 | API 안정성 | 낮음 | 1개 |
+| 2-3 | MEDIUM | Rate Limiting 추가 | DoS 방지 | 낮음 | 2개 |
+| 2-4 | MEDIUM | 전역 state 노출 제한 | 클라이언트 조작 방지 | 낮음 | 1개 |
+| 2-5 | MEDIUM | CORS 화이트리스트 설정 | API 접근 제어 | 낮음 | 1개 |
+| 2-6 | MEDIUM | localStorage 무결성 검증 | 로컬 데이터 조작 방지 | 중간 | 1개 |
+
+---
+
+### 2-1. 서버 입력 검증 강화 (타입/범위)
+
+#### 현재 상태
+
+`server/index.js:43-59`에서 `player_name`은 Phase 1에서 검증이 추가되었으나, `clear_time`과 `total_overtime_pay`는 타입 강제와 범위 검증이 부족:
+
+```javascript
+// 현재: 하한만 검증, 타입 강제 없음
+if (clear_time < 30) {
+  return res.status(400).json({ error: '비정상적인 기록입니다.' });
+}
+// total_overtime_pay: 검증 전혀 없음
+```
+
+**위험**: `clear_time: "not_a_number"`, `total_overtime_pay: -999` 같은 비정상 값이 DB에 저장될 수 있음.
+
+#### 수정 방안
+
+3번(물리적 불가능 기록 필터링) 이후에 타입 강제 + 범위 검증 추가:
+
+```javascript
+// clear_time 검증
+const parsedTime = parseFloat(clear_time);
+if (!Number.isFinite(parsedTime) || parsedTime < 30 || parsedTime > 86400) {
+  return res.status(400).json({ error: '비정상적인 기록입니다.' });
+}
+
+// total_overtime_pay 검증
+const parsedPay = parseInt(total_overtime_pay, 10);
+if (!Number.isInteger(parsedPay) || parsedPay < 0 || parsedPay > 999999) {
+  return res.status(400).json({ error: '야근수당이 유효하지 않습니다.' });
+}
+```
+
+| 필드 | 타입 | 최솟값 | 최댓값 | 근거 |
+|------|------|--------|--------|------|
+| `clear_time` | float | 30 | 86400 (24시간) | 30초 미만은 물리적 불가, 24시간 초과는 비현실적 |
+| `total_overtime_pay` | int | 0 | 999999 | 음수 불가, 게임 내 최대 획득 가능 수당 기준 |
+
+#### 수정 대상 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `server/index.js` | clear_time, total_overtime_pay 타입 강제 + 범위 검증 추가. 검증 후 파싱된 값을 체크섬 생성 및 DB 저장에 사용 |
+
+#### 테스트 계획
+
+- [ ] `clear_time: "abc"` → 400 응답
+- [ ] `clear_time: -1` → 400 응답
+- [ ] `clear_time: 100000` → 400 응답
+- [ ] `total_overtime_pay: -500` → 400 응답
+- [ ] `total_overtime_pay: "string"` → 400 응답
+- [ ] 정상 값 → 성공 응답
+- [ ] 기존 E2E 테스트 통과
+
+---
+
+### 2-3. Rate Limiting 추가
+
+#### 현재 상태
+
+`server/index.js`에 요청 횟수 제한이 전혀 없음. 공격자가 자동화 스크립트로 수천 개의 요청을 보내 DB 스팸 및 서버 리소스 고갈 가능.
+
+#### 수정 방안
+
+`express-rate-limit` 패키지 추가:
+
+```javascript
+const rateLimit = require('express-rate-limit');
+
+// 랭킹 등록: IP당 1분에 5회
+const submitLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: '너무 많은 요청입니다. 잠시 후 다시 시도하세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// 랭킹 조회: IP당 1분에 30회
+const queryLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: '너무 많은 요청입니다. 잠시 후 다시 시도하세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/rescaper-api/rankings', submitLimiter, async (req, res) => { ... });
+app.get('/rescaper-api/rankings', queryLimiter, async (req, res) => { ... });
+```
+
+#### 수정 대상 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `server/package.json` | `express-rate-limit` 의존성 추가 |
+| `server/index.js` | rateLimit 미들웨어 적용 (POST 5회/분, GET 30회/분) |
+
+#### 테스트 계획
+
+- [ ] 정상 요청 → 성공
+- [ ] 서버 구문 체크 통과
+- [ ] 기존 E2E 테스트 통과
+
+---
+
+### 2-4. 전역 state 노출 제한
+
+#### 현재 상태
+
+`game.js:41`:
+```javascript
+window.gameState = state; // Expose for testing
+```
+
+브라우저 콘솔에서 `window.gameState.player.hp = 9999` 등으로 게임 상태 조작 가능.
+
+#### 수정 방안
+
+테스트 환경에서만 노출하도록 URL 파라미터 기반 분기:
+
+```javascript
+// 테스트 환경(Playwright)에서만 state 노출
+if (new URL(location.href).searchParams.has('__test__')) {
+  window.gameState = state;
+}
+```
+
+Playwright 테스트에서는 URL에 `?__test__` 파라미터를 추가하여 접근:
+```javascript
+// tests/*.spec.js
+await page.goto('http://localhost:8000/playable-web/index.html?__test__');
+```
+
+#### 수정 대상 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `playable-web/game.js` | `window.gameState` 노출을 `?__test__` 조건부로 변경 |
+| `tests/*.spec.js` | goto URL에 `?__test__` 파라미터 추가 (4개 테스트 파일) |
+
+#### 테스트 계획
+
+- [ ] `?__test__` 없이 접속 → `window.gameState`가 `undefined`
+- [ ] `?__test__` 포함 접속 → `window.gameState` 정상 노출
+- [ ] 기존 E2E 테스트 전체 통과 (URL 파라미터 추가 후)
+
+---
+
+### 2-5. CORS 화이트리스트 설정
+
+#### 현재 상태
+
+`server/index.js:19`:
+```javascript
+app.use(cors()); // 모든 오리진 허용
+```
+
+모든 도메인에서 API 요청이 허용되어, 악성 사이트에서 사용자 브라우저를 통해 랭킹 API를 호출할 수 있음.
+
+#### 수정 방안
+
+```javascript
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:8000', 'http://localhost:8080'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // origin이 없는 경우 (같은 오리진, 서버간 통신) 허용
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy violation'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+}));
+```
+
+프로덕션에서는 Docker 환경변수로 설정:
+```yaml
+# docker-compose.prod.yml
+- CORS_ORIGINS=https://yourdomain.com
+```
+
+#### 수정 대상 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `server/index.js` | `cors()` → 오리진 화이트리스트 설정 |
+
+#### 주의사항
+
+- 프로덕션에서는 nginx가 같은 컨테이너 네트워크에서 프록시하므로, `origin`이 없는(same-origin) 요청은 항상 허용
+- 개발 환경에서는 `localhost:8000` (정적 서버), `localhost:8080` (Docker) 기본 허용
+
+#### 테스트 계획
+
+- [ ] 같은 오리진 요청 → 성공
+- [ ] 서버 구문 체크 통과
+- [ ] 기존 E2E 테스트 통과
+
+---
+
+### 2-6. localStorage 무결성 검증
+
+#### 현재 상태
+
+`save-system.js:16-51`에서 localStorage 데이터를 파싱 후 **검증 없이** 스프레드 연산자로 병합:
+
+```javascript
+loadMeta(storage, key) {
+  const meta = s ? JSON.parse(s) : {};
+  return {
+    totalClears: 0,
+    maxHpBonus: 0,
+    speedBonus: 0,
+    // ...기본값
+    ...meta,  // ← 조작된 값이 그대로 적용됨
+  };
+}
+```
+
+**위험**: 개발자 콘솔에서 `localStorage.setItem('rescaperMeta', '{"maxHpBonus":9999}')` → 게임 시작 시 비정상 버프 적용.
+
+#### 수정 방안
+
+`loadMeta()` 반환 전에 각 필드의 타입과 범위를 검증:
+
+```javascript
+loadMeta(storage, key) {
+  // ... 기존 파싱 로직 ...
+  return this._validateMeta({
+    /* 기본값 */
+    ...meta,
+  });
+},
+
+_validateMeta(meta) {
+  const rules = {
+    totalClears:   { type: 'number', min: 0, max: 99999 },
+    bestTimeMs:    { type: 'number', min: 0, max: 86400000 },
+    totalPlayTime: { type: 'number', min: 0, max: 999999999 },
+    deathCount:    { type: 'number', min: 0, max: 99999 },
+    recentDeaths:  { type: 'number', min: 0, max: 99999 },
+    maxHpBonus:    { type: 'number', min: 0, max: 500 },
+    speedBonus:    { type: 'number', min: 0, max: 1 },
+    damageBonus:   { type: 'number', min: 0, max: 1 },
+  };
+
+  for (const [key, rule] of Object.entries(rules)) {
+    const val = meta[key];
+    if (typeof val !== rule.type || !Number.isFinite(val) || val < rule.min || val > rule.max) {
+      meta[key] = rule.min;  // 기본값으로 리셋
+    }
+  }
+
+  // items 객체 검증
+  if (!meta.items || typeof meta.items !== 'object') {
+    meta.items = { cpu: 0, ram: 0, badge: 0 };
+  }
+  for (const k of ['cpu', 'ram', 'badge']) {
+    const v = meta.items[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 999) {
+      meta.items[k] = 0;
+    }
+  }
+
+  // 배열 필드 검증
+  if (!Array.isArray(meta.unlockedItems)) meta.unlockedItems = [];
+  if (!Array.isArray(meta.clearRecords)) meta.clearRecords = [];
+
+  return meta;
+},
+```
+
+#### 수정 대상 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `playable-web/systems/save-system.js` | `_validateMeta()` 메서드 추가, `loadMeta()`에서 호출 |
+
+#### 테스트 계획
+
+- [ ] 정상 메타데이터 → 값 유지
+- [ ] `maxHpBonus: 9999` → `0`으로 리셋
+- [ ] `speedBonus: "string"` → `0`으로 리셋
+- [ ] `items: null` → 기본 객체로 리셋
+- [ ] 기존 E2E 테스트 통과
+
+---
+
+### 작업 순서 및 의존 관계
+
+```
+2-1 서버 입력 검증 강화 (독립)
+ └─ server/index.js 수정
+
+2-3 Rate Limiting (독립, npm install 필요)
+ ├─ npm install express-rate-limit
+ └─ server/index.js 수정
+
+2-4 전역 state 노출 제한 (독립)
+ ├─ game.js 수정
+ └─ tests/*.spec.js URL 파라미터 추가
+
+2-5 CORS 화이트리스트 (독립)
+ └─ server/index.js 수정
+
+2-6 localStorage 무결성 검증 (독립)
+ └─ save-system.js 수정
+```
+
+> **모든 작업이 독립적**이므로 순서 제약 없이 진행 가능.
+> 서버 측 변경(2-1, 2-3, 2-5)을 먼저 묶어 진행하고, 클라이언트(2-4, 2-6)를 이어서 진행하면 효율적.
+
+---
+
+### Phase 2 완료 기준 체크리스트
+
+> Phase 2 완료 (2026-03-20). 15/15 E2E 테스트 통과.
+
+#### 2-1 완료 조건
+- [x] `clear_time` 비숫자/범위 초과 → 400 응답
+- [x] `total_overtime_pay` 음수/비숫자 → 400 응답
+- [x] 기존 E2E 테스트 통과
+
+#### 2-3 완료 조건
+- [x] POST 6회 연속 → 429 응답
+- [x] GET 31회 연속 → 429 응답
+- [x] 정상 사용 시 영향 없음
+
+#### 2-4 완료 조건
+- [x] 일반 접속 시 `window.gameState === undefined`
+- [x] 테스트 URL 접속 시 `window.gameState` 정상
+- [x] 기존 E2E 테스트 전체 통과
+
+#### 2-5 완료 조건
+- [x] 같은 오리진 API 호출 → 성공
+- [x] 기존 E2E 테스트 통과
+
+#### 2-6 완료 조건
+- [x] 조작된 localStorage 값 → 기본값으로 리셋
+- [x] 정상 데이터 → 값 유지
+- [x] 기존 E2E 테스트 통과

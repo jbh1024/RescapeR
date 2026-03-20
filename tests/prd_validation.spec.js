@@ -6,7 +6,7 @@ test.describe('PRD Validation Tests', () => {
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
 
-    await page.goto('./index.html');
+    await page.goto('./index.html?__test__');
 
     // 사원명 입력 후 게임 시작 (오프닝 시네마틱 포함)
     const input = page.locator('#player-name-input');
