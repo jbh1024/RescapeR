@@ -51,10 +51,15 @@ test.describe('PRD Validation Tests', () => {
       state.player.y = state.floor.gate.y;
     });
 
-    // Press 'e' to go to next floor
-    await page.keyboard.press('e');
+    // 'e' 키를 누른 상태 유지 (게임 루프에서 isPressed("e") 체크)
+    await page.keyboard.down('e');
+    await page.waitForFunction(
+      (prev) => window.gameState.floorIndex > prev,
+      initialFloorIndex,
+      { timeout: 5000 }
+    );
+    await page.keyboard.up('e');
 
-    // Verify floor index has changed and log contains entry message
     const nextFloorIndex = await page.evaluate(() => window.gameState.floorIndex);
     expect(nextFloorIndex).toBe(initialFloorIndex + 1);
 
