@@ -1,55 +1,24 @@
 /**
  * RescapeR Ranking System
  * 글로벌 랭킹(명예의 퇴근 명부) 관리를 위한 시스템 모듈
+ * 체크섬은 서버에서 생성/관리 — 클라이언트는 데이터만 전송
  */
 
 const API_BASE_URL = '/rescaper-api'; // 호스트 Nginx가 ranking-server로 프록시
-const SECRET_KEY = 'rescaper_secret_token_2024';
 const STORAGE_QUEUE_KEY = 'rescaperRankingQueue';
 
 export const RescapeRRankingSystem = {
   /**
-   * HMAC-SHA256 체크섬 생성 (Web Crypto API 사용)
-   */
-  async generateChecksum(name, time, pay) {
-    // 부동 소수점 정밀도 및 타입 통일
-    const timeStr = parseFloat(time).toFixed(2);
-    const payStr = parseInt(pay).toString();
-    const dataString = `${name}:${timeStr}:${payStr}`;
-    
-    console.log('[Ranking] Generating checksum for:', dataString); // 디버깅용
-
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(SECRET_KEY);
-    const msgData = encoder.encode(dataString);
-
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-
-    const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
-    return Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  },
-
-  /**
-   * 랭킹 기록 제출
+   * 랭킹 기록 제출 (체크섬은 서버에서 생성)
    */
   async submitRecord(name, timeMs, pay) {
     const timeSec = parseFloat((timeMs / 1000).toFixed(2));
-    
+
     try {
-      const checksum = await this.generateChecksum(name, timeSec, pay);
       const payload = {
         player_name: name,
         clear_time: timeSec,
-        total_overtime_pay: pay,
-        checksum: checksum
+        total_overtime_pay: pay
       };
 
       const response = await fetch(`${API_BASE_URL}/rankings`, {
@@ -62,7 +31,7 @@ export const RescapeRRankingSystem = {
       if (!response.ok) {
         return { success: false, error: data.error || 'Server error' };
       }
-      
+
       return data;
     } catch (error) {
       console.error('Ranking submission failed, buffering locally:', error);

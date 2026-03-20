@@ -49,7 +49,7 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 
 ### 하이브리드 구조
 - **playable-web/**: 핵심 게임 클라이언트. `game.js`가 엔트리포인트이며 모든 시스템 모듈을 import
-- **server/**: Express + SQLite 랭킹 API 서버. HMAC-SHA256으로 기록 무결성 검증
+- **server/**: Express + MySQL 랭킹 API 서버. 서버 전용 HMAC-SHA256으로 기록 무결성 서명
 - **Assets/Scripts/**: Unity C# 스캐폴딩 (참조용, 현재 개발 대상 아님)
 
 ### 게임 클라이언트 시스템 모듈 (`playable-web/systems/`)
@@ -63,8 +63,8 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 | `floor-system.js` | 층 생성, 전환, 플랫폼/몬스터 배치 |
 | `player-system.js` | 플레이어 상태, 이동, 대시, 스킬 적용 |
 | `ai-system.js` | 몬스터 AI 행동 패턴 |
-| `ranking-system.js` | 랭킹 조회/등록, HMAC 체크섬, 오프라인 버퍼링 |
-| `ui-system.js` | HTML DOM 오버레이 UI (스킬 선택, 상점, 정보 패널) |
+| `ranking-system.js` | 랭킹 조회/등록, 오프라인 버퍼링 (체크섬은 서버 전용) |
+| `ui-system.js` | HTML DOM 오버레이 UI (스킬 선택, 상점, 정보 패널), XSS 방어 유틸리티 |
 | `input-system.js` | 키보드 입력 처리 |
 | `fx-system.js` | 파티클, 데미지 텍스트, 화면 흔들림 |
 | `audio-system.js` | 사운드/BGM 관리 |
@@ -97,9 +97,17 @@ Jenkins 프리스타일 job 3개로 파이프라인 운영:
 - 게임 내 용어: 재화는 **'야근수당'**, 랭킹 보드는 **'명예의 퇴근 명부'**
 
 ### 랭킹 보안
-- 모든 기록 제출은 HMAC-SHA256 체크섬 검증 필수
+- HMAC-SHA256 체크섬은 **서버에서만** 생성/관리 (클라이언트에 시크릿 키 없음)
+- `RANKING_SECRET_KEY` 환경변수 필수 (미설정 시 서버 시작 거부)
 - 최소 클리어 타임 30초 미만은 서버에서 차단
+- 서버에서 player_name HTML 태그 차단 + 길이 제한(1~10자) 검증
 - 오프라인 시 localStorage에 버퍼링 후 재접속 시 재전송
+
+### 보안 정책
+- **CSP**: `script-src 'self'` — 인라인 스크립트/외부 스크립트 차단 (index.html + nginx)
+- **XSS 방어**: `escapeHtml()` (ui-system.js) — 서버 데이터를 innerHTML에 삽입 시 필수 사용
+- **인라인 핸들러 금지**: `onclick` 등 사용 금지 → `addEventListener` 사용
+- **환경변수**: `.env` 파일은 Git에 커밋하지 않음 (`.env.example`만 커밋)
 
 ### 게임 흐름 (시네마틱)
 - **오프닝**: 사원명 입력 후 게임 시작 시, `OPENING_LINES` 중 랜덤 1개가 타이핑 효과로 표시 → 페이드아웃 후 게임 시작
@@ -112,4 +120,5 @@ Jenkins 프리스타일 job 3개로 파이프라인 운영:
 - `docs/GDD.md`: 게임 디자인 (층 구성, 무기, 스킬, 몬스터 데이터)
 - `docs/RANKING_SYSTEM.md`: 랭킹 시스템 상세 요구사항
 - `docs/DEPLOY.md`: Docker 및 멀티 아키텍처 배포 가이드
+- `docs/SECURITY_REMEDIATION_PLAN.md`: 보안 취약점 수정 계획서
 - `GEMINI.md`: AI 에이전트 가이드 (추가 컨텍스트)

@@ -1,3 +1,14 @@
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+export { escapeHtml };
+
 export const RescapeRUiSystem = {
   formatDuration(ms) {
     if (typeof ms !== "number" || isNaN(ms)) return "00:00";
@@ -65,7 +76,7 @@ export const RescapeRUiSystem = {
           html += `
             <tr style="border-bottom:1px solid #222; ${rowStyle}">
               <td style="padding:10px;">${rankLabel}</td>
-              <td style="padding:10px;">${item.player_name}</td>
+              <td style="padding:10px;">${escapeHtml(item.player_name)}</td>
               <td style="padding:10px;">${this.formatDuration(item.clear_time * 1000)}</td>
               <td style="padding:10px;">${item.total_overtime_pay.toLocaleString()}</td>
             </tr>

@@ -80,21 +80,45 @@ test.describe('RescapeR Ranking System Verification', () => {
     await page.waitForTimeout(2000);
   });
 
-  test('Ranking integrity check (HMAC validation test)', async ({ page }) => {
-    // RankingSystem 모듈이 정상적으로 체크섬을 생성하는지 확인
+  test('Ranking integrity check (submit without client-side checksum)', async ({ page }) => {
+    // 클라이언트에서 체크섬 없이 데이터만 전송하는지 확인
     const result = await page.evaluate(async () => {
       const { RescapeRRankingSystem } = await import('./systems/ranking-system.js');
-      // 체크섬 생성 로직만 검증 (서버 통신 없이)
       try {
         const record = await RescapeRRankingSystem.submitRecord('IntegrityTest', 45000, 500);
         return record;
       } catch (e) {
-        // 서버 미가동 시 에러는 허용하되, 함수 자체가 존재하는지 확인
         return { functionExists: true, error: e.message };
       }
     });
 
-    // submitRecord 함수가 존재하고 호출 가능한지 확인
     expect(result).toBeDefined();
+
+    // generateChecksum 함수가 제거되었는지 확인
+    const hasChecksum = await page.evaluate(async () => {
+      const { RescapeRRankingSystem } = await import('./systems/ranking-system.js');
+      return typeof RescapeRRankingSystem.generateChecksum;
+    });
+    expect(hasChecksum).toBe('undefined');
+  });
+
+  test('escapeHtml prevents XSS in player names', async ({ page }) => {
+    // escapeHtml 함수가 HTML 태그를 이스케이프하는지 확인
+    const result = await page.evaluate(async () => {
+      const { escapeHtml } = await import('./systems/ui-system.js');
+      return {
+        script: escapeHtml('<script>alert(1)</script>'),
+        img: escapeHtml('<img src=x onerror=alert(1)>'),
+        normal: escapeHtml('야근러'),
+        ampersand: escapeHtml('A&B'),
+        quotes: escapeHtml('"hello"'),
+      };
+    });
+
+    expect(result.script).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(result.img).toBe('&lt;img src=x onerror=alert(1)&gt;');
+    expect(result.normal).toBe('야근러');
+    expect(result.ampersand).toBe('A&amp;B');
+    expect(result.quotes).toBe('&quot;hello&quot;');
   });
 });

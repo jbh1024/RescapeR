@@ -6,7 +6,7 @@ services:
       - "3000"
     environment:
       - NODE_ENV=production
-      - RANKING_SECRET_KEY=${RANKING_SECRET_KEY:-rescaper_secret_token_2024}
+      - RANKING_SECRET_KEY=${RANKING_SECRET_KEY:?RANKING_SECRET_KEY 환경변수를 설정하세요}
       - DB_HOST=${DB_HOST:-host.docker.internal}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-root}

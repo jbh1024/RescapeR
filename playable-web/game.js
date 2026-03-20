@@ -5,7 +5,7 @@ import { RescapeRFxSystem as FxSystem } from './systems/fx-system.js';
 import { RescapeRAssetManager as AssetManager } from './systems/asset-manager.js';
 import { RescapeRSaveSystem as SaveSystem } from './systems/save-system.js';
 import { RescapeRCombatSystem as CombatSystem } from './systems/combat-system.js';
-import { RescapeRUiSystem as UiSystem } from './systems/ui-system.js';
+import { RescapeRUiSystem as UiSystem, escapeHtml } from './systems/ui-system.js';
 import { RescapeRRankingSystem as RankingSystem } from './systems/ranking-system.js';
 import { RescapeRRenderSystem as RenderSystem } from './systems/render-system.js';
 import { RescapeRMonsterArchetypeSystem as MonsterArchetypeSystem } from './systems/monster-archetype-system.js';
@@ -45,7 +45,7 @@ function log(msg) {
   state.logs = state.logs || [];
   state.logs.unshift(`[${time}] ${msg}`);
   state.logs = state.logs.slice(0, 12);
-  if (logEl) logEl.innerHTML = state.logs.map(x => `<div>${x}</div>`).join("");
+  if (logEl) logEl.innerHTML = state.logs.map(x => `<div>${escapeHtml(x)}</div>`).join("");
 }
 
 function showCinematic(lines, onComplete) {
@@ -525,9 +525,10 @@ function onDeath() {
     <div style="text-align:center;">
       <h1 style="color:#ff4444; font-size:3rem;">K.O.</h1>
       <p>과로로 쓰러졌습니다...</p>
-      <button onclick="location.reload()" style="padding:10px 20px; font-size:1.2rem; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px;">다시 시작 (R)</button>
+      <button id="death-restart-btn" style="padding:10px 20px; font-size:1.2rem; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px;">다시 시작 (R)</button>
     </div>
   `;
+  document.getElementById("death-restart-btn").addEventListener("click", () => location.reload());
 }
 
 function onWin() {
@@ -622,7 +623,7 @@ function showSkillSelection() {
       <h2 style="color:#8de0c3; margin-bottom:20px;">레벨 업! 스킬을 선택하세요</h2>
       <div style="display:flex; justify-content:center; gap:20px;">
         ${shuffled.map((s, i) => `
-          <div style="background:rgba(0,0,0,0.7); border:2px solid #444; padding:15px; width:200px; cursor:pointer;" onclick="window.gameState.pickSkill(${i})">
+          <div class="skill-pick-btn" data-skill-index="${i}" style="background:rgba(0,0,0,0.7); border:2px solid #444; padding:15px; width:200px; cursor:pointer;">
             <h3 style="margin:0; color:#fff;">${i+1}. ${s.label}</h3>
             <p style="font-size:0.9rem; color:#ccc;">${s.rolled.desc}</p>
           </div>
@@ -637,6 +638,9 @@ function showSkillSelection() {
       </div>
     </div>
   `;
+  document.querySelectorAll(".skill-pick-btn").forEach(btn => {
+    btn.addEventListener("click", () => pickSkill(parseInt(btn.dataset.skillIndex)));
+  });
 }
 
 function pickSkill(index) {
@@ -653,7 +657,7 @@ function pickSkill(index) {
   overlayEl.classList.add("hidden");
   state.pendingSkills = null;
 }
-window.gameState.pickSkill = pickSkill; // 글로벌 노출
+// pickSkill은 addEventListener로 바인딩되므로 전역 노출 불필요
 
 function showShop() {
   state.mode = "shop";

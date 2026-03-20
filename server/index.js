@@ -8,13 +8,17 @@ const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// 기본 비밀키를 클라이언트와 동일하게 설정 (환경 변수 누락 대비)
-const SECRET_KEY = process.env.RANKING_SECRET_KEY || 'rescaper_secret_token_2024';
+const SECRET_KEY = process.env.RANKING_SECRET_KEY;
+
+if (!SECRET_KEY) {
+  console.error('[FATAL] RANKING_SECRET_KEY 환경변수가 설정되지 않았습니다. 서버를 시작할 수 없습니다.');
+  process.exit(1);
+}
 
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // 랭킹 조회 (Top 10)
 app.get('/rescaper-api/rankings', async (req, res) => {
@@ -34,45 +38,37 @@ app.get('/rescaper-api/rankings', async (req, res) => {
 
 // 랭킹 등록
 app.post('/rescaper-api/rankings', async (req, res) => {
-  const { player_name, clear_time, total_overtime_pay, checksum } = req.body;
-  console.log('[API] Received ranking submission:', { player_name, clear_time, total_overtime_pay, checksum });
+  const { player_name, clear_time, total_overtime_pay } = req.body;
 
   // 1. 필수 값 검증
-  if (!player_name || clear_time === undefined || total_overtime_pay === undefined || !checksum) {
-    console.warn('[API] Missing required fields');
+  if (!player_name || clear_time === undefined || total_overtime_pay === undefined) {
     return res.status(400).json({ error: '필수 데이터가 누락되었습니다.' });
   }
 
-  // 2. 물리적 불가능 기록 필터링 (최소 30초 이상)
+  // 2. player_name 검증 (XSS 방지 + 길이 제한)
+  if (typeof player_name !== 'string' || player_name.length === 0 || player_name.length > 10) {
+    return res.status(400).json({ error: '사원명은 1~10자여야 합니다.' });
+  }
+  if (/<[^>]*>/.test(player_name)) {
+    return res.status(400).json({ error: '사원명에 HTML 태그를 사용할 수 없습니다.' });
+  }
+
+  // 3. 물리적 불가능 기록 필터링 (최소 30초 이상)
   if (clear_time < 30) {
-    console.warn('[API] Clear time too short:', clear_time);
     return res.status(400).json({ error: '비정상적인 기록입니다.' });
   }
 
-  // 3. 체크섬 검증 (HMAC SHA256)
-  // 부동 소수점 오차 방지를 위해 문자열 포맷 통일
+  // 4. 서버에서 체크섬 생성 (데이터 무결성 서명)
   const timeStr = parseFloat(clear_time).toFixed(2);
-  const dataString = `${player_name}:${timeStr}:${total_overtime_pay}`;
+  const payStr = parseInt(total_overtime_pay).toString();
+  const dataString = `${player_name}:${timeStr}:${payStr}`;
 
-  // 클라이언트의 Web Crypto API (UTF-8)와 일치시키기 위해 명시적 파싱
-  const expectedChecksum = CryptoJS.HmacSHA256(
+  const checksum = CryptoJS.HmacSHA256(
     CryptoJS.enc.Utf8.parse(dataString),
     CryptoJS.enc.Utf8.parse(SECRET_KEY)
   ).toString(CryptoJS.enc.Hex);
 
-  if (checksum !== expectedChecksum) {
-    console.warn(`[Security Warning] Checksum mismatch for ${player_name}`);
-    console.warn(` - Received: ${checksum}`);
-    console.warn(` - Expected: ${expectedChecksum}`);
-    console.warn(` - Data String used: "${dataString}"`);
-    console.warn(` - Key used: "${SECRET_KEY}"`);
-    return res.status(403).json({
-      error: '데이터 무결성 검증에 실패했습니다.',
-      debug: process.env.NODE_ENV === 'development' ? { expected: expectedChecksum, usedString: dataString } : undefined
-    });
-  }
-
-  // 4. 데이터 저장
+  // 5. 데이터 저장
   try {
     const [result] = await db.execute(
       'INSERT INTO rankings (player_name, clear_time, total_overtime_pay, checksum) VALUES (?, ?, ?, ?)',

@@ -63,7 +63,7 @@ Jenkins 프리스타일 job으로 CI/CD 파이프라인을 운영합니다.
 ### **Jenkins Job 구성**
 | Job | 역할 | 트리거 |
 |---|---|---|
-| `rescaper-ci` | 의존성 설치 → 구문 체크 → Playwright E2E 테스트 (14개) | Push 시 자동 |
+| `rescaper-ci` | 의존성 설치 → 구문 체크 → Playwright E2E 테스트 (15개) | Push 시 자동 |
 | `rescaper-deploy-prod` | 멀티 아키텍처 Docker 이미지 빌드 → Docker Hub Push | 수동 (VERSION 파라미터) |
 | `rescaper-deploy-server` | Docker Hub에서 Pull → 프로덕션 서버 배포 | 수동 (VERSION 파라미터) |
 
@@ -102,7 +102,7 @@ node index.js
 ### **Docker 로컬 빌드 (개발용)**
 로컬 소스 코드에서 직접 빌드하여 실행합니다.
 ```bash
-docker compose -f docker/docker-compose.yml up --build
+RANKING_SECRET_KEY=$(openssl rand -base64 32) docker compose -f docker/docker-compose.yml up --build
 ```
 *   게임 접속: `http://localhost:8080`
 
@@ -121,14 +121,21 @@ docker compose -f docker/docker-compose.prod.yml up -d
 *   랭킹 API: 게임 컨테이너 내부 Nginx가 `/rescaper-api/`를 랭킹 서버로 프록시 (외부 미노출)
 
 ### **주요 설정 (Environment Variables)**
-`docker-compose.yml`의 `environment` 또는 `server/.env` 파일을 통해 설정을 관리합니다.
+`server/.env.example`을 참고하여 `server/.env` 파일을 생성하고, Docker 환경에서는 `docker-compose.yml`의 `environment`로 설정합니다.
 *   `RESCAPER_TAG`: Docker 이미지 버전 태그 (기본값: `latest`)
 *   `PORT`: 서버 포트
-*   `RANKING_SECRET_KEY`: 클라이언트와 서버 간 데이터 무결성 검증을 위한 HMAC 비밀키 (보안을 위해 반드시 변경 권장)
+*   `RANKING_SECRET_KEY`: **필수**. 서버 전용 HMAC 비밀키. 미설정 시 서버가 시작되지 않음
+    ```bash
+    # 강력한 키 생성
+    openssl rand -base64 32
+    ```
+*   `DB_PASSWORD`: 데이터베이스 비밀번호 (프로덕션에서는 반드시 강력한 값 사용)
+
+> **주의**: `.env` 파일은 Git에 커밋하지 않습니다. `.env.example`만 참조용으로 커밋되어 있습니다.
 
 ---
 
 ## 📊 참고 정보
 - **기본 이미지:** `nginx:alpine` (~23MB)
 - **최종 이미지 크기:** 약 30-50MB
-- **보안:** Nginx 설정에 `X-Frame-Options`, `X-Content-Type-Options` 등 보안 헤더가 적용되어 있습니다.
+- **보안:** Nginx에 CSP, `X-Frame-Options DENY`, `X-Content-Type-Options nosniff`, `Referrer-Policy` 등 보안 헤더가 적용되어 있습니다. 클라이언트에도 CSP 메타 태그가 포함되어 있습니다.
