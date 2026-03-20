@@ -39,7 +39,9 @@ docker compose -f docker/docker-compose.yml up --build   # http://localhost:8080
 # Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
 ./scripts/build-multiarch.sh v1.2.1 yourusername
 
-# 프로덕션 실행 (Docker Hub에서 pull)
+# 프로덕션 실행 (Docker Hub에서 pull, 버전 지정 가능)
+RESCAPER_TAG=v1.2.1 docker compose -f docker/docker-compose.prod.yml up -d
+# 또는 latest 사용
 docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
@@ -72,7 +74,15 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 모든 런타임 데이터는 `game.js`의 `state` 객체에서 관리. 전역 변수 사용 금지. `window.gameState = state`로 테스트용 노출.
 
 ### 테스트 환경
-Playwright 기반 E2E 테스트. `playwright.config.js`에서 `serve` 정적 서버를 자동 기동하여 `http://localhost:8000/playable-web/`을 대상으로 테스트.
+Playwright 기반 E2E 테스트. `playwright.config.js`에서 `http-server` 정적 서버를 자동 기동하여 `http://127.0.0.1:8000/playable-web/`을 대상으로 테스트.
+
+### CI/CD (Jenkins)
+Jenkins 프리스타일 job 3개로 파이프라인 운영:
+- `rescaper-ci`: 의존성 설치 → 구문 체크 → Playwright E2E 테스트
+- `rescaper-deploy-prod`: 멀티 아키텍처 Docker 빌드 → Docker Hub Push (VERSION 파라미터)
+- `rescaper-deploy-server`: Docker Hub Pull → 프로덕션 배포 (VERSION 파라미터)
+
+`docker-compose.prod.yml`은 `RESCAPER_TAG` 환경변수로 이미지 버전 제어 (기본값: `latest`).
 
 ## 개발 규칙
 

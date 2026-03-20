@@ -1,6 +1,6 @@
 services:
   ranking-server:
-    image: jbh1024/rescaper-ranking:latest
+    image: jbh1024/rescaper-ranking:${RESCAPER_TAG:-latest}
     container_name: rescaper-ranking-api
     expose:
       - "3000"
@@ -34,7 +34,7 @@ services:
         max-file: "3"
 
   rescaper:
-    image: jbh1024/rescaper:latest
+    image: jbh1024/rescaper:${RESCAPER_TAG:-latest}
     container_name: rescaper-game
     ports:
       - "4431:80"

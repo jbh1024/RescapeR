@@ -35,6 +35,10 @@
 - **JS 난독화:** 프로덕션 빌드 시 `javascript-obfuscator`를 적용합니다.
 - **자동화 테스트:** `npx playwright test` (신규 기능 및 랭킹 시스템 검증 포함)
 
+### 4. CI/CD (Jenkins)
+- Jenkins 프리스타일 job 3개로 파이프라인 운영: `rescaper-ci` (테스트), `rescaper-deploy-prod` (Docker Hub Push), `rescaper-deploy-server` (서버 배포)
+- `docker-compose.prod.yml`은 `RESCAPER_TAG` 환경변수로 이미지 버전 제어 (기본값: `latest`)
+
 ## 🕹️ 조작 표준 (Key Bindings)
 - 이동: `← / →` | 점프: `↑` | 공격: `Space` | 대시: `Shift`
 - 상호작용/상점/이벤트: `E` | 소비 슬롯: `Q`

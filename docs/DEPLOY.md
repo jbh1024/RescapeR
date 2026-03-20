@@ -56,8 +56,32 @@ npm run serve
 
 ---
 
-## 4. 🏗️ CI/CD 통합 (GitHub Actions)
-`latest` 태그는 항상 최신 안정 버전을 가리키도록 관리됩니다. CI/CD 환경에서는 `platforms: linux/amd64,linux/arm64`를 명시하여 빌드하는 것을 권장합니다.
+## 4. 🏗️ CI/CD 통합 (Jenkins)
+
+Jenkins 프리스타일 job으로 CI/CD 파이프라인을 운영합니다.
+
+### **Jenkins Job 구성**
+| Job | 역할 | 트리거 |
+|---|---|---|
+| `rescaper-ci` | 의존성 설치 → 구문 체크 → Playwright E2E 테스트 (14개) | Push 시 자동 |
+| `rescaper-deploy-prod` | 멀티 아키텍처 Docker 이미지 빌드 → Docker Hub Push | 수동 (VERSION 파라미터) |
+| `rescaper-deploy-server` | Docker Hub에서 Pull → 프로덕션 서버 배포 | 수동 (VERSION 파라미터) |
+
+### **Jenkins 환경 요구사항**
+Jenkins Docker 컨테이너에는 다음이 설치되어야 합니다:
+- Node.js 20.x, Docker CLI + Buildx 플러그인
+- Playwright Chromium 의존성 (libglib2.0, libnss3 등)
+- Docker 소켓 마운트 (`/var/run/docker.sock`)
+
+### **버전 태그를 이용한 프로덕션 배포**
+`docker-compose.prod.yml`은 환경변수 `RESCAPER_TAG`로 이미지 버전을 제어합니다:
+```bash
+# 특정 버전 배포
+RESCAPER_TAG=v1.2.1 docker compose -f docker/docker-compose.prod.yml up -d
+
+# 기본값(latest) 배포
+docker compose -f docker/docker-compose.prod.yml up -d
+```
 
 ---
 
@@ -85,7 +109,11 @@ docker compose -f docker/docker-compose.yml up --build
 ### **Docker를 이용한 프로덕션 배포**
 서버에 `docker-compose.prod.yml` 파일만 배치한 후 Docker Hub에서 이미지를 pull하여 실행합니다.
 ```bash
-# 이미지 pull 및 실행
+# 특정 버전으로 배포
+RESCAPER_TAG=v1.2.1 docker compose -f docker/docker-compose.prod.yml pull
+RESCAPER_TAG=v1.2.1 docker compose -f docker/docker-compose.prod.yml up -d
+
+# 최신 버전(latest)으로 배포
 docker compose -f docker/docker-compose.prod.yml pull
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
@@ -94,6 +122,7 @@ docker compose -f docker/docker-compose.prod.yml up -d
 
 ### **주요 설정 (Environment Variables)**
 `docker-compose.yml`의 `environment` 또는 `server/.env` 파일을 통해 설정을 관리합니다.
+*   `RESCAPER_TAG`: Docker 이미지 버전 태그 (기본값: `latest`)
 *   `PORT`: 서버 포트
 *   `RANKING_SECRET_KEY`: 클라이언트와 서버 간 데이터 무결성 검증을 위한 HMAC 비밀키 (보안을 위해 반드시 변경 권장)
 
