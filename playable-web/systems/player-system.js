@@ -16,7 +16,8 @@ export const RescapeRPlayerSystem = {
       regenPerSec: 0, regenTimer: 0, regenStacks: 0,
       dashCd: 800, dashTimer: 0, jumpCount: 0, maxJumps: 2,
       facing: 1, walkAnim: 0, invuln: 0, attackSwing: 0,
-      skillNames: [], styleId: "none", weapon: null
+      skillNames: [], styleId: "none", weapon: null,
+      tempBuffs: [], commuteUsed: false
     };
     p.hp = p.maxHp;
     // 기본 무기 장착

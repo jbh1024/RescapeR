@@ -304,6 +304,37 @@ export const RescapeRRenderSystem = {
     ctx.textAlign = "start";
   },
 
+  drawCafe(ctx, cafe, theme) {
+    if (!cafe) return;
+
+    // 카페 본체 (카운터 느낌)
+    this.drawPixelRect(ctx, cafe.x, cafe.y, cafe.w, cafe.h, "#4a2f1d");
+    this.drawPixelRect(ctx, cafe.x + 5, cafe.y + 5, cafe.w - 10, cafe.h - 10, "#5c3d2e");
+
+    // 상단 간판
+    this.drawPixelRect(ctx, cafe.x - 5, cafe.y - 20, cafe.w + 10, 25, "#8b5e3c");
+    ctx.fillStyle = "#f5deb3";
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("CAFE", cafe.x + cafe.w / 2, cafe.y - 3);
+
+    // 커피잔 아이콘 (간단한 픽셀)
+    this.drawPixelRect(ctx, cafe.x + 35, cafe.y + 20, 30, 25, "#d2691e");
+    this.drawPixelRect(ctx, cafe.x + 38, cafe.y + 15, 24, 8, "#f5deb3"); // 거품
+    this.drawPixelRect(ctx, cafe.x + 65, cafe.y + 25, 8, 12, "#d2691e"); // 손잡이
+
+    // 하단 장식
+    for(let i=0; i<3; i++) {
+      this.drawPixelRect(ctx, cafe.x + 20 + i*22, cafe.y + 60, 15, 15, "#8b5e3c");
+    }
+
+    // 안내 메시지
+    ctx.fillStyle = "#f5deb3";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText("E: 카페 열기", cafe.x + cafe.w / 2, cafe.y - 35);
+    ctx.textAlign = "start";
+  },
+
   drawBackground(ctx, width, height, theme, ART_ASSETS, cameraX, zone = "") {
     // 1. 기본 그래디언트 배경
     const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -439,18 +470,37 @@ export const RescapeRRenderSystem = {
     }
 
     // 영구 업그레이드(Artifacts) 정보
+    let nextSectionY = 248;
     if (p.artifacts && p.artifacts.length > 0) {
-      const artStartY = 248;
-      this.drawPixelRect(ctx, 18, artStartY, 300, 15 + p.artifacts.length * 20, "rgba(0,0,0,0.5)");
-      
+      const artHeight = 15 + p.artifacts.length * 20;
+      this.drawPixelRect(ctx, 18, nextSectionY, 300, artHeight, "rgba(0,0,0,0.5)");
+
       ctx.fillStyle = "#8de0c3";
       ctx.font = "bold 11px monospace";
-      ctx.fillText("PERMANENT UPGRADES:", 30, artStartY + 15);
-      
+      ctx.fillText("PERMANENT UPGRADES:", 30, nextSectionY + 15);
+
       p.artifacts.forEach((art, i) => {
         ctx.fillStyle = "#fff";
         ctx.font = "10px monospace";
-        ctx.fillText(`• ${art.label}: ${art.desc}`, 30, artStartY + 32 + i * 18);
+        ctx.fillText(`• ${art.label}: ${art.desc}`, 30, nextSectionY + 32 + i * 18);
+      });
+      nextSectionY += artHeight + 5;
+    }
+
+    // 임시 버프(Temp Buffs) 정보
+    if (p.tempBuffs && p.tempBuffs.length > 0) {
+      const buffHeight = 15 + p.tempBuffs.length * 20;
+      this.drawPixelRect(ctx, 18, nextSectionY, 300, buffHeight, "rgba(0,0,0,0.5)");
+
+      ctx.fillStyle = "#f5deb3";
+      ctx.font = "bold 11px monospace";
+      ctx.fillText("TEMP BUFFS:", 30, nextSectionY + 15);
+
+      const pulse = 0.7 + Math.sin(performance.now() * 0.004) * 0.3;
+      p.tempBuffs.forEach((b, i) => {
+        ctx.fillStyle = this.withAlpha("#f5deb3", pulse);
+        ctx.font = "10px monospace";
+        ctx.fillText(`• ${b.label}: ${b.desc} (${b.floorsRemaining}층 남음)`, 30, nextSectionY + 32 + i * 18);
       });
     }
 

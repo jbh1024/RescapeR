@@ -24,7 +24,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const GROUND_Y = HEIGHT - 75;
 const WORLD_WIDTH = 3200;
-const APP_VERSION = "v1.2.2";
+const APP_VERSION = "v1.3.0";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const META_STORAGE_KEY = "rescaperMeta";
 
@@ -185,7 +185,8 @@ function startRun(name = "야근러") {
 }
 
 function togglePause(forcePause = null) {
-  if (state.mode !== "playing" && state.mode !== "shop" && state.mode !== "skillSelect") return;
+  if (state.mode !== "playing" && state.mode !== "shop" && state.mode !== "cafe"
+      && state.mode !== "commute" && state.mode !== "purchaseResult" && state.mode !== "skillSelect") return;
 
   const targetState = forcePause !== null ? !forcePause : !state.running;
   if (state.running === targetState) return;
@@ -322,11 +323,15 @@ function loop(now) {
     state.cameraX = Math.max(0, Math.min(WORLD_WIDTH - WIDTH, state.player.x - WIDTH * 0.35));
     state.runElapsedMs += dt;
     if (InputSystem.isPressed("e")) {
-      // 1. 상점 체크 (B1 세이프존)
+      // 1. 상점 체크 (B1 + 카페)
       if (state.floor.shop && CombatSystem.intersects(state.player, state.floor.shop)) {
         if (state.mode === "playing") showShop();
-      } 
-      // 2. 게이트 체크
+      }
+      // 2. 카페 전용 콘텐츠 체크
+      else if (state.floor.cafe && CombatSystem.intersects(state.player, state.floor.cafe)) {
+        if (state.mode === "playing") showCafe();
+      }
+      // 3. 게이트 체크
       else if (state.floor.gateOpen && CombatSystem.intersects(state.player, state.floor.gate)) {
         nextFloor();
       }
@@ -354,6 +359,7 @@ function loop(now) {
   for (const plat of state.floor.platforms) RenderSystem.drawPlatform(ctx, plat, state.floor.theme, ART_ASSETS);
   for (const it of state.floor.pickups) RenderSystem.drawPickup(ctx, it);
   if (state.floor.shop) RenderSystem.drawShop(ctx, state.floor.shop, state.floor.theme);
+  if (state.floor.cafe) RenderSystem.drawCafe(ctx, state.floor.cafe, state.floor.theme);
   RenderSystem.drawGate(ctx, state.floor.gate, state.floor.gateOpen, state.floor.theme);
   for (const e of state.floor.enemies) RenderSystem.drawEnemy(ctx, e, ART_ASSETS, ART_FRAME_SPECS, state.floor.theme);
   for (const trail of state.dashTrails) RenderSystem.drawPlayerTrail(ctx, trail, ART_ASSETS, ART_FRAME_SPECS);
@@ -455,9 +461,35 @@ InputSystem.init((e, wasDown) => {
 
   if (state.mode === "shop") {
     if (key === "1") buyShopItem(0);
-    if (key === "2") buyShopItem(1);
-    if (key === "3") buyShopItem(2);
-    if (key === "escape" || key === "e" || key === "p") closeShop();
+    else if (key === "2") buyShopItem(1);
+    else if (key === "3") buyShopItem(2);
+    else if (key === "escape" || key === "e" || key === "p") closeShop();
+    return;
+  }
+
+  if (state.mode === "cafe") {
+    if (key === "4") buyCafeItem(0);
+    else if (key === "5") buyCafeItem(1);
+    else if (key === "6") buyCafeItem(2);
+    else if (key === "escape" || key === "e" || key === "p") closeCafe();
+    return;
+  }
+
+  if (state.mode === "commute") {
+    if (key === "1") buyCommute(0);
+    else if (key === "2") buyCommute(1);
+    else if (key === "3") buyCommute(2);
+    else if (key === "escape" || key === "e" || key === "p") showCafe();
+    return;
+  }
+
+  if (state.mode === "purchaseResult") {
+    if (state._purchaseResultCallback) {
+      const cb = state._purchaseResultCallback;
+      state._purchaseResultCallback = null;
+      cb();
+    }
+    return;
   }
 });
 
@@ -498,6 +530,20 @@ function enterFloor(idx, resetPlayerPos = false) {
     state.player.x = 90;
     state.player.y = GROUND_Y - state.player.h;
   }
+  // tempBuffs 만료 처리
+  if (state.player.tempBuffs) {
+    for (let i = state.player.tempBuffs.length - 1; i >= 0; i--) {
+      const b = state.player.tempBuffs[i];
+      b.floorsRemaining--;
+      if (b.floorsRemaining <= 0) {
+        if (b.add) state.player[b.stat] -= b.add;
+        if (b.mul) state.player[b.stat] /= b.mul;
+        log(`버프 만료: ${b.label}`);
+        state.player.tempBuffs.splice(i, 1);
+      }
+    }
+  }
+
   state.cameraX = 0;
   log(`${info.name} 진입`);
 }
@@ -668,7 +714,7 @@ function showShop() {
   overlayEl.classList.remove("hidden");
   overlayEl.innerHTML = `
     <div style="text-align:center; width:100%;">
-      <h2 style="color:#ffd700; margin-bottom:20px;">지하 1층 보급소 (보유 야근수당: ${state.player.gold})</h2>
+      <h2 style="color:#ffd700; margin-bottom:20px;">${escapeHtml(state.floor.info.name)} 보급소 (보유 야근수당: ${state.player.gold})</h2>
       <div style="display:flex; justify-content:center; gap:20px;">
         ${Config.SHOP_OPTIONS.map((opt, i) => `
           <div style="background:rgba(0,0,0,0.7); border:2px solid #e67e22; padding:15px; width:220px;">
@@ -695,34 +741,89 @@ function buyShopItem(index) {
 
   state.player.gold -= opt.cost;
   
+  let resultTitle = "";
+  let resultDesc = "";
+  let resultColor = "#ffd700";
+
   if (opt.id === "heal") {
     const emptyIdx = state.player.inventory.findIndex(item => item === "빈 슬롯" || item === "사용함");
     if (emptyIdx !== -1) {
       state.player.inventory[emptyIdx] = "회복키트";
+      resultTitle = "에너지 드링크 구매!";
+      resultDesc = "회복 키트를 인벤토리에 보관했습니다.";
+      resultColor = "#44ff44";
       log("회복 키트를 구매했습니다.");
     } else {
       state.player.hp = Math.min(state.player.maxHp, state.player.hp + 60);
+      resultTitle = "에너지 드링크 즉시 사용!";
+      resultDesc = "인벤토리 가득 — HP +60 즉시 회복!";
+      resultColor = "#44ff44";
       log("인벤토리가 가득 차 즉시 체력을 회복했습니다.");
     }
   } else if (opt.id === "reroll") {
     const w = Config.WEAPON_CATALOG[Math.floor(Math.random() * Config.WEAPON_CATALOG.length)];
     PlayerSystem.equipWeapon(state.player, w);
+    const tierColors = { Common: "#ccc", Rare: "#4a90e2", Epic: "#a335ee", Legendary: "#ff8000" };
+    resultTitle = "키보드 교체 완료!";
+    resultDesc = `<span style="color:${tierColors[w.tier] || '#fff'}">[${escapeHtml(w.tier)}] ${escapeHtml(w.name)}</span> 장착! — ${escapeHtml(w.feature)}`;
+    resultColor = tierColors[w.tier] || "#ffd700";
     log(`구매 완료: 키보드 교체 (${w.name} 장착!)`);
   } else if (opt.id === "artifact") {
     const keys = Object.keys(Config.itemCatalog);
     const itemId = keys[Math.floor(Math.random() * keys.length)];
     const item = Config.itemCatalog[itemId];
-    
+
     if (itemId === "cpu") state.player.damageMul += 0.04;
     else if (itemId === "ram") { state.player.maxHp += 5; state.player.hp += 5; }
     else if (itemId === "badge") state.player.speedMul += 0.03;
-    
+
     if (!state.player.artifacts) state.player.artifacts = [];
     state.player.artifacts.push({ id: itemId, label: item.label, desc: item.desc });
+    resultTitle = "영구 업그레이드 획득!";
+    resultDesc = `<span style="color:#8de0c3">${escapeHtml(item.label)}</span> — ${escapeHtml(item.desc)}`;
+    resultColor = "#8de0c3";
     log(`구매 완료: 영구 업그레이드 (${item.label} 획득)`);
   }
 
-  showShop();
+  state.mode = "purchaseResult";
+  showPurchaseResult(resultTitle, resultDesc, resultColor, () => {
+    state.mode = "shop";
+    showShop();
+  });
+}
+
+function showPurchaseResult(title, desc, color, onDone) {
+  overlayEl.innerHTML = `
+    <style>
+      @keyframes resultPopIn {
+        0% { transform: scale(0.6); opacity: 0; }
+        60% { transform: scale(1.08); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes glowPulse {
+        0%, 100% { box-shadow: 0 0 20px ${color}40; }
+        50% { box-shadow: 0 0 40px ${color}80, 0 0 60px ${color}30; }
+      }
+      @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+    </style>
+    <div style="text-align:center; width:100%;">
+      <div style="background:rgba(0,0,0,0.88); border:2px solid ${color}; border-radius:15px; padding:30px 50px; display:inline-block;
+                  animation: resultPopIn 0.4s ease-out, glowPulse 1.5s ease-in-out infinite;">
+        <h2 style="color:${color}; margin:0 0 12px 0; font-size:1.8rem;
+                   background: linear-gradient(90deg, ${color}, #fff, ${color});
+                   background-size: 200% auto;
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                   animation: shimmer 2s linear infinite;">${escapeHtml(title)}</h2>
+        <p style="color:#eee; font-size:1.1rem; margin:0;">${desc}</p>
+      </div>
+      <p style="margin-top:25px; color:#aaa; font-size:0.9rem; animation:blink 1s infinite;">아무 키나 눌러 계속...</p>
+    </div>
+  `;
+
+  state._purchaseResultCallback = onDone;
 }
 
 function closeShop() {
@@ -730,4 +831,152 @@ function closeShop() {
   state.running = true;
   overlayEl.classList.add("hidden");
   log("상점을 나옵니다.");
+}
+
+function showCafe() {
+  state.mode = "cafe";
+  state.running = false;
+  overlayEl.classList.remove("hidden");
+
+  const commuteLabel = state.player.commuteUsed
+    ? `${Config.CAFE_EXTRA_OPTIONS[2].label} (사용 완료)`
+    : Config.CAFE_EXTRA_OPTIONS[2].label;
+
+  overlayEl.innerHTML = `
+    <div style="text-align:center; width:100%;">
+      <h2 style="color:#f5deb3; margin-bottom:20px;">7층 사내카페 (보유 야근수당: ${state.player.gold})</h2>
+      <div style="display:flex; justify-content:center; gap:20px;">
+        ${Config.CAFE_EXTRA_OPTIONS.map((opt, i) => {
+          const label = (i === 2) ? commuteLabel : opt.label;
+          const dimStyle = (i === 2 && state.player.commuteUsed) ? "opacity:0.5;" : "";
+          return `
+          <div style="background:rgba(0,0,0,0.7); border:2px solid #8b5e3c; padding:15px; width:220px; ${dimStyle}">
+            <h3 style="margin:0; color:#fff;">${opt.key}. ${escapeHtml(label)}</h3>
+            <p style="font-size:0.85rem; color:#ccc;">${escapeHtml(opt.desc)}</p>
+            <p style="color:#ffd700; font-weight:bold;">${opt.cost > 0 ? '비용: ' + opt.cost : '비용: 옵션별 상이'}</p>
+          </div>`;
+        }).join('')}
+      </div>
+      <p style="margin-top:20px; color:#aaa;">숫자 키 4, 5, 6 을 눌러 이용 | <b>ESC / P / E</b> 키로 나가기</p>
+    </div>
+  `;
+}
+
+function buyCafeItem(index) {
+  if (state.mode !== "cafe") return;
+  const opt = Config.CAFE_EXTRA_OPTIONS[index];
+  if (!opt) return;
+
+  if (opt.id === "gamble") {
+    if (state.player.gold < opt.cost) {
+      log(`야근수당이 부족합니다! (필요: ${opt.cost})`);
+      return;
+    }
+    state.player.gold -= opt.cost;
+    const roll = Math.random();
+    let reward = 0;
+    let resultText = "";
+    let resultTitle = "";
+    let resultColor = "";
+    if (roll < 0.35) {
+      reward = 0;
+      resultTitle = "꽝!";
+      resultText = "전액 손실... 100 야근수당을 잃었습니다.";
+      resultColor = "#ff4444";
+    } else if (roll < 0.65) {
+      reward = 150;
+      resultTitle = "1.5배!";
+      resultText = "+150 야근수당! (순이익 +50)";
+      resultColor = "#ffd700";
+    } else if (roll < 0.90) {
+      reward = 200;
+      resultTitle = "2배!!";
+      resultText = "+200 야근수당! (순이익 +100)";
+      resultColor = "#44ff44";
+    } else {
+      reward = 300;
+      resultTitle = "JACKPOT 3배!!!";
+      resultText = "+300 야근수당!! (순이익 +200)";
+      resultColor = "#ff8000";
+    }
+    state.player.gold += reward;
+    log(`도박 결과: ${resultTitle} ${resultText}`);
+    state.mode = "purchaseResult";
+    showPurchaseResult(resultTitle, resultText, resultColor, () => {
+      state.mode = "cafe";
+      showCafe();
+    });
+  } else if (opt.id === "gacha") {
+    if (state.player.gold < opt.cost) {
+      log(`야근수당이 부족합니다! (필요: ${opt.cost})`);
+      return;
+    }
+    state.player.gold -= opt.cost;
+    const pool = Config.GACHA_BUFF_POOL;
+    const buff = pool[Math.floor(Math.random() * pool.length)];
+    const appliedBuff = { ...buff, floorsRemaining: 2 };
+
+    if (buff.add) state.player[buff.stat] += buff.add;
+    if (buff.mul) state.player[buff.stat] *= buff.mul;
+
+    state.player.tempBuffs.push(appliedBuff);
+    log(`버프 획득: ${buff.label} (${buff.desc}) — 2층 동안 지속`);
+    state.mode = "purchaseResult";
+    showPurchaseResult(
+      `버프 획득: ${buff.label}`,
+      `<span style="color:#8de0c3">${escapeHtml(buff.desc)}</span><br><span style="color:#aaa; font-size:0.9rem;">2층 동안 지속 (8층 + 9층)</span>`,
+      "#8de0c3",
+      () => { state.mode = "cafe"; showCafe(); }
+    );
+  } else if (opt.id === "commute") {
+    if (state.player.commuteUsed) {
+      log("출퇴근 조정신청은 이미 사용했습니다!");
+      return;
+    }
+    showCommuteMenu();
+  }
+}
+
+function showCommuteMenu() {
+  state.mode = "commute";
+  overlayEl.innerHTML = `
+    <div style="text-align:center; width:100%;">
+      <h2 style="color:#f5deb3; margin-bottom:20px;">출퇴근 조정신청 (보유 야근수당: ${state.player.gold})</h2>
+      <p style="color:#ccc; margin-bottom:15px;">현재 플레이타임을 감소시킵니다 (1회 한정)</p>
+      <div style="display:flex; justify-content:center; gap:20px;">
+        ${Config.COMMUTE_OPTIONS.map((opt) => `
+          <div style="background:rgba(0,0,0,0.7); border:2px solid #8b5e3c; padding:15px; width:200px;">
+            <h3 style="margin:0; color:#fff;">${opt.key}. ${escapeHtml(opt.label)}</h3>
+            <p style="font-size:0.85rem; color:#ccc;">${escapeHtml(opt.desc)}</p>
+            <p style="color:#ffd700; font-weight:bold;">비용: ${opt.cost}</p>
+          </div>
+        `).join('')}
+      </div>
+      <p style="margin-top:20px; color:#aaa;">숫자 키 1, 2, 3 을 눌러 선택 | <b>ESC / P / E</b> 키로 뒤로가기</p>
+    </div>
+  `;
+}
+
+function buyCommute(index) {
+  if (state.mode !== "commute") return;
+  const opt = Config.COMMUTE_OPTIONS[index];
+  if (!opt) return;
+
+  if (state.player.gold < opt.cost) {
+    log(`야근수당이 부족합니다! (필요: ${opt.cost})`);
+    return;
+  }
+
+  state.player.gold -= opt.cost;
+  state.runElapsedMs *= opt.ratio;
+  state.player.commuteUsed = true;
+  log(`출퇴근 조정: ${opt.label} 사용! 플레이타임이 ${opt.desc}로 감소!`);
+  showCafe();
+}
+
+function closeCafe() {
+  state.mode = "playing";
+  state.running = true;
+  overlayEl.classList.add("hidden");
+  log("카페를 나옵니다.");
 }

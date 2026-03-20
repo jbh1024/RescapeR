@@ -35,7 +35,7 @@ npm run serve
 ./scripts/build-multiarch.sh
 
 # 특정 버전 태그로 배포 (사용자명 명시)
-./scripts/build-multiarch.sh v1.2.2 yourusername
+./scripts/build-multiarch.sh v1.3.0 yourusername
 ```
 
 ### **배포되는 이미지**
@@ -52,7 +52,7 @@ npm run serve
 이 오류는 빌드 아키텍처와 실행 서버 아키텍처가 다를 때 발생합니다 (예: Mac M1에서 빌드 후 Intel 서버에서 실행).
 - **해결 1:** `build-multiarch.sh` 스크립트를 사용하여 빌드하십시오.
 - **해결 2:** 특정 플랫폼을 명시하여 빌드하십시오.
-  `./scripts/build-specific-platform.sh v1.2.2 linux/amd64 yourusername`
+  `./scripts/build-specific-platform.sh v1.3.0 linux/amd64 yourusername`
 
 ---
 
@@ -77,7 +77,7 @@ Jenkins Docker 컨테이너에는 다음이 설치되어야 합니다:
 `docker-compose.prod.yml`은 환경변수 `RESCAPER_TAG`로 이미지 버전을 제어합니다:
 ```bash
 # 특정 버전 배포
-RESCAPER_TAG=v1.2.2 docker compose -f docker/docker-compose.prod.yml up -d
+RESCAPER_TAG=v1.3.0 docker compose -f docker/docker-compose.prod.yml up -d
 
 # 기본값(latest) 배포
 docker compose -f docker/docker-compose.prod.yml up -d
@@ -110,8 +110,8 @@ RANKING_SECRET_KEY=$(openssl rand -base64 32) docker compose -f docker/docker-co
 서버에 `docker-compose.prod.yml` 파일만 배치한 후 Docker Hub에서 이미지를 pull하여 실행합니다.
 ```bash
 # 특정 버전으로 배포
-RESCAPER_TAG=v1.2.2 docker compose -f docker/docker-compose.prod.yml pull
-RESCAPER_TAG=v1.2.2 docker compose -f docker/docker-compose.prod.yml up -d
+RESCAPER_TAG=v1.3.0 docker compose -f docker/docker-compose.prod.yml pull
+RESCAPER_TAG=v1.3.0 docker compose -f docker/docker-compose.prod.yml up -d
 
 # 최신 버전(latest)으로 배포
 docker compose -f docker/docker-compose.prod.yml pull

@@ -61,21 +61,21 @@ const ART_FRAME_SPECS = {
 };
 
 const FLOOR_PLAN = [
-  { n: -6, name: "지하 6층 심연 주차장", zone: "parking", boss: "주차관리 팀장 · 휘슬러" },
-  { n: -5, name: "지하 5층 심연 주차장", zone: "parking", boss: "주차관리 팀장 · 휘슬러" },
-  { n: -4, name: "지하 4층 심연 주차장", zone: "parking", boss: "주차관리 팀장 · 휘슬러" },
-  { n: -3, name: "지하 3층 심연 주차장", zone: "parking", boss: "주차관리 팀장 · 휘슬러" },
-  { n: -2, name: "지하 2층 심연 주차장", zone: "parking", boss: "주차관리 팀장 · 휘슬러" },
+  { n: -6, name: "지하 6층 겁나좁은 주차장", zone: "parking", boss: "머리다을라" },
+  { n: -5, name: "지하 5층 주차장", zone: "parking", boss: "멍멍이주차(실선밟기)" },
+  { n: -4, name: "지하 4층 주차장", zone: "parking", boss: "사이드브레이크(이중주차러)" },
+  { n: -3, name: "지하 3층 전기차 주차장", zone: "parking", boss: "파란칸내칸(디젤차)" },
+  { n: -2, name: "지하 2층 지정주차 주차장", zone: "parking", boss: "나도좀대자(그자리만)" },
   { n: -1, name: "지하 1층 보급소", zone: "cafeteria", safeZone: true },
-  { n: 1, name: "1층 관문 로비", zone: "lobby", boss: "보안실장 · 무결점 게이트" },
-  { n: 2, name: "2층 전시 쇼룸", zone: "showroom", boss: "PPT 빌런 · 512슬라이드" },
-  { n: 3, name: "3층 전시 쇼룸", zone: "showroom", boss: "PPT 빌런 · 512슬라이드" },
-  { n: 4, name: "4층 혼돈 모바일/UX", zone: "mobile", boss: "가챠 중독자 · 확률조작단" },
-  { n: 5, name: "5층 서버 웹/클라우드", zone: "server", boss: "풀스택 거미 · 스레드 위버" },
-  { n: 6, name: "6층 글리치 QA/AI", zone: "glitch", boss: "버그 헌터 · 리포트 파쇄자" },
-  { n: 7, name: "7층 확산 마케팅", zone: "marketing", boss: "바이럴 확성기 · 클릭 유도왕" },
-  { n: 8, name: "8층 지원 센터", zone: "support", boss: "실적 압박맨 · KPI 집행자" },
-  { n: 9, name: "9층 권력 임원실", zone: "executive", boss: "대표이사 (CEO) · 야근 선언자", finalBoss: true },
+  { n: 1, name: "1층 관문 로비", zone: "lobby", boss: "유결점 게이트(사원증체커)" },
+  { n: 2, name: "2층 전시 쇼룸", zone: "showroom", boss: "사이다박스(전화박스)" },
+  { n: 3, name: "3층 회의실", zone: "conference", boss: "5분만더(회의중독자)" },
+  { n: 4, name: "4층 혼돈 모바일/UX", zone: "mobile", boss: "크로스플렛폼(와이어프레임)" },
+  { n: 5, name: "5층 서버 웹/클라우드", zone: "server", boss: "스택오버플로우(풀스택 코더)" },
+  { n: 6, name: "6층 글리치 QA/AI", zone: "glitch", boss: "아몰라안됨(버그헌터)" },
+  { n: 7, name: "7층 사내카페", zone: "cafe", safeZone: true },
+  { n: 8, name: "8층 마케팅 & 기술지원", zone: "marketing", boss: "ROAS제로(세일즈포스)" },
+  { n: 9, name: "9층 권력 임원실", zone: "executive", boss: "야근 선언자(대표이사·AI)", finalBoss: true },
 ];
 
 const THEMES = {
@@ -83,11 +83,12 @@ const THEMES = {
   cafeteria: { bg: ["#4a2d12", "#24160a"], bgImg: "trees02", wall: "#e67e22", floor: "#6a3a14", accent: "#ffb266" },
   lobby: { bg: ["#bdc3c7", "#6c757d"], bgImg: "mountains", wall: "#ecf0f1", floor: "#8f9ca7", accent: "#ffffff" },
   showroom: { bg: ["#1abc9c", "#0c6a59"], bgImg: "sky", wall: "#67dac7", floor: "#12947f", accent: "#d6fff7" },
+  conference: { bg: ["#34495e", "#1c2833"], bgImg: "mountains", wall: "#5d6d7e", floor: "#2c3e50", accent: "#aeb6bf" },
   mobile: { bg: ["#9b59b6", "#4b2a59"], bgImg: "trees01", wall: "#c184db", floor: "#6f3f83", accent: "#f0cfff" },
   server: { bg: ["#2ecc71", "#12683b"], bgImg: "mergedDark", wall: "#78e6a6", floor: "#1d9152", accent: "#e5ffef" },
   glitch: { bg: ["#e74c3c", "#7b1f16"], bgImg: "mergedDark", wall: "#ff8f84", floor: "#b5372a", accent: "#ffe4e1" },
   marketing: { bg: ["#f1c40f", "#7f6608"], bgImg: "sky", wall: "#ffe27a", floor: "#ba980d", accent: "#fff7d1" },
-  support: { bg: ["#d35400", "#6b2800"], bgImg: "trees02", wall: "#ee8d4d", floor: "#a74200", accent: "#ffd8bf" },
+  cafe: { bg: ["#5c3d2e", "#2e1f17"], bgImg: "trees02", wall: "#8b5e3c", floor: "#4a2f1d", accent: "#f5deb3" },
   executive: { bg: ["#8e44ad", "#3f1f4d"], bgImg: "mountains", wall: "#b786ca", floor: "#6c3383", accent: "#f2d9ff" },
 };
 
@@ -256,6 +257,26 @@ const SHOP_OPTIONS = [
   { id: "artifact", key: "3", label: "영구 업그레이드", cost: 180, desc: "영구 아이템 1개 랜덤 획득" },
 ];
 
+const CAFE_EXTRA_OPTIONS = [
+  { id: "gamble", key: "4", label: "야근수당 도박", cost: 100, desc: "야근수당을 걸고 도박! (잭팟 3배!)" },
+  { id: "gacha",  key: "5", label: "버프 랜덤뽑기", cost: 150, desc: "2층 동안 지속되는 랜덤 버프 획득" },
+  { id: "commute",key: "6", label: "출퇴근 조정신청", cost: 0,  desc: "플레이타임 감소 (1회 한정)" },
+];
+
+const COMMUTE_OPTIONS = [
+  { id: "half",    key: "1", label: "반차",     cost: 1000, ratio: 0.5,   desc: "플레이타임 ×1/2" },
+  { id: "quarter", key: "2", label: "반반차",   cost: 700,  ratio: 0.25,  desc: "플레이타임 ×1/4" },
+  { id: "eighth",  key: "3", label: "반반반차", cost: 500,  ratio: 0.125, desc: "플레이타임 ×1/8" },
+];
+
+const GACHA_BUFF_POOL = [
+  { id: "cafeAtkSpd", label: "에스프레소 샷", desc: "공격속도 +20%", stat: "attackCdMul", mul: 0.8 },
+  { id: "cafeDmg",    label: "아메리카노 부스트", desc: "공격력 +15%", stat: "damageMul", add: 0.15 },
+  { id: "cafeSpd",    label: "카페인 러쉬", desc: "이동속도 +25%", stat: "speedMul", add: 0.25 },
+  { id: "cafeArmor",  label: "따뜻한 라떼", desc: "받는 피해 -20%", stat: "damageTakenMul", mul: 0.8 },
+  { id: "cafeRegen",  label: "허브티 힐링", desc: "HP 재생 +3/초", stat: "regenPerSec", add: 3 },
+];
+
 const ENEMY_MUTATORS = {
   berserk: {
     label: "광폭",
@@ -308,6 +329,10 @@ const SPECIAL_EVENT_ROOM_BY_ZONE = {
     { id: "skill_cache", label: "데모 스테이지", hint: "전투 경험치", color: "#9dffe8" },
     { id: "overclock_charge", label: "조명 제어실", hint: "오버클럭 충전", color: "#8ff7ff" },
   ],
+  conference: [
+    { id: "armor_patch", label: "회의록 방패", hint: "피해 완화", color: "#aeb6bf" },
+    { id: "skill_cache", label: "브레인스토밍 랩", hint: "전투 경험치", color: "#d5dbdb" },
+  ],
   mobile: [
     { id: "risk_trade", label: "가챠 단말기", hint: "위험-보상 거래", color: "#e6b8ff" },
     { id: "skill_cache", label: "AB 테스트 랩", hint: "전투 경험치", color: "#d5c2ff" },
@@ -324,6 +349,7 @@ const SPECIAL_EVENT_ROOM_BY_ZONE = {
     { id: "gold_contract", label: "바이럴 계약실", hint: "골드 보너스", color: "#fff3a0" },
     { id: "payroll_cache", label: "성과급 정산기", hint: "야근수당 인출", color: "#ffe08a" },
   ],
+  cafe: [],
   support: [
     { id: "recovery_pod", label: "상담 회복실", hint: "긴급 회복", color: "#ffd8b0" },
     { id: "armor_patch", label: "매뉴얼 보정실", hint: "피해 완화", color: "#ffd0bf" },
@@ -339,10 +365,12 @@ const PLAYER_CALLSIGN = {
   cafeteria: "식권 검객",
   lobby: "출입증 파쇄자",
   showroom: "회의 브레이커",
+  conference: "회의 탈출러",
   mobile: "알림 차단자",
   server: "트래픽 도살자",
   glitch: "버그 정리반",
   marketing: "노이즈 사일런서",
+  cafe: "카페 단골손님",
   support: "민원 종결자",
   executive: "칼퇴 집행관",
 };
@@ -352,10 +380,12 @@ const MONSTER_NAME_POOL = {
   cafeteria: ["식판 병사", "식권 수금봇", "국밥 연기 요정", "잔반 심판관", "국자 드론", "셀프바 포식자"],
   lobby: ["CCTV 비홀더", "출입게이트 파수견", "보안 로그 핏덩이", "QR 인증 파수병", "방문증 몰수자", "대리석 잔향체"],
   showroom: ["마네킹 예스맨", "레이저 포인터령", "회의실 반사체", "유리벽 스토커", "데모 장표 악령", "베스트프랙티스 망령"],
+  conference: ["회의록 요정", "안건 되감기", "타임킬러 시계", "발언권 도둑", "무한회의 소환사", "결론없는 토론령"],
   mobile: ["터치 제스처", "푸시 알림 떼", "랜덤박스 임프", "무한스크롤 정령", "팝톡 스팸러", "리텐션 집착귀"],
   server: ["버그 떼", "패킷 거머리", "스택트레이스 망령", "CPU 스로틀러", "로그 폭풍령", "케이블 덩굴괴수"],
   glitch: ["도플갱어", "404 잔상", "예외처리 망령", "Null 포식자", "테스트 누락체", "리그레션 환영"],
   marketing: ["팝업창 방패병", "클릭베이트 박쥐", "브랜딩 메아리", "CTR 유혹자", "바이럴 스피커", "광고소재 미믹"],
+  cafe: [],
   support: ["콜센터 히드라", "대기열 포식자", "실적 스캐너", "클레임 되감기", "전화벨 폴터가이스트", "상담 스크립트 골렘"],
   executive: ["인사팀 암살자", "결재 도장 골렘", "리스크 심사관", "회의록 검열관", "보고서 사냥개", "비용절감 감찰관"],
 };
@@ -420,6 +450,9 @@ export const RescapeRConfig = {
   WEAPON_CATALOG,
   WEAPON_AFFIXES,
   SHOP_OPTIONS,
+  CAFE_EXTRA_OPTIONS,
+  COMMUTE_OPTIONS,
+  GACHA_BUFF_POOL,
   ENEMY_MUTATORS,
   SPECIAL_EVENT_ROOM_BY_ZONE,
   PLAYER_CALLSIGN,

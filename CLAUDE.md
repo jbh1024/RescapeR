@@ -37,10 +37,10 @@ cd server && npm install && node index.js   # http://localhost:3000
 docker compose -f docker/docker-compose.yml up --build   # http://localhost:8080
 
 # Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
-./scripts/build-multiarch.sh v1.2.2 yourusername
+./scripts/build-multiarch.sh v1.3.0 yourusername
 
 # 프로덕션 실행 (Docker Hub에서 pull, 버전 지정 가능)
-RESCAPER_TAG=v1.2.2 docker compose -f docker/docker-compose.prod.yml up -d
+RESCAPER_TAG=v1.3.0 docker compose -f docker/docker-compose.prod.yml up -d
 # 또는 latest 사용
 docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docker/docker-compose.prod.yml up -d
 ```
@@ -57,7 +57,7 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 
 | 모듈 | 역할 |
 |---|---|
-| `data-config.js` | 모든 정적 데이터(층 구성, 몬스터풀, 스킬, 아트 경로 등)의 단일 진실 소스 |
+| `data-config.js` | 모든 정적 데이터(층 구성, 몬스터풀, 스킬, 아트 경로, 카페/출퇴근 옵션 등)의 단일 진실 소스 |
 | `render-system.js` | Canvas 2D 렌더링 (배경, 타일, 캐릭터, HUD) |
 | `combat-system.js` | 전투 판정, 데미지 계산, 피격 처리 |
 | `floor-system.js` | 층 생성, 전환, 플랫폼/몬스터 배치 |
@@ -119,6 +119,7 @@ Jenkins 프리스타일 job 3개로 파이프라인 운영:
 - **엔딩**: 9층 보스 클리어 후 `ENDING_LINES` 중 랜덤 1개가 타이핑 효과로 표시 → 페이드아웃 후 퇴근 성공 화면(기록 저장/초기화면)
 - 시네마틱 공통 함수: `showCinematic(lines, onComplete)` → `showOpening` / `showEnding` 래퍼
 - 매 게임 시작(`startRun`) 시 `localStorage.clear()`를 통해 로컬 데이터 초기화
+- **카페 시스템**: 7층 사내카페(Safe Zone)에서 기본 상점 + 카페 전용 콘텐츠(야근수당 도박, 버프 랜덤뽑기, 출퇴근 조정신청) 이용 가능. 버프는 2층 지속 후 자동 만료, 출퇴근 조정신청은 1회 한정
 
 ### 테스트 필수
 - 모든 기능 수정 및 개발은 테스트를 모두 pass 하고 검증이 완료가 되어야 작업이 완료 된 것으로 간주한다.

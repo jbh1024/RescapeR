@@ -93,7 +93,8 @@ export const RescapeRFloorSystem = {
       pickups,
       gate: { x: worldWidth - 150, y: groundY - 120, w: 80, h: 120 },
       gateOpen: info.safeZone,
-      shop: info.safeZone ? { x: 600, y: groundY - 100, w: 100, h: 100 } : null
+      shop: info.safeZone ? { x: 600, y: groundY - 100, w: 100, h: 100 } : null,
+      cafe: (info.safeZone && info.zone === "cafe") ? { x: 900, y: groundY - 100, w: 100, h: 100 } : null
     };
   }
 };
