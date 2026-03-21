@@ -28,7 +28,7 @@ const APP_VERSION = "v1.3.0";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const META_STORAGE_KEY = "rescaperMeta";
 
-const { ART_ASSET_PATHS, ART_FRAME_SPECS, FLOOR_PLAN, PLAYER_CALLSIGN, MONSTER_NAME_POOL, SKILL_TEMPLATES } = Config;
+const { ART_ASSET_PATHS, ART_FRAME_SPECS, FLOOR_PLAN, MONSTER_NAME_POOL, SKILL_TEMPLATES } = Config;
 const ART_ASSETS = AssetManager.loadArtAssetsSync(ART_ASSET_PATHS);
 
 const state = {
@@ -138,11 +138,11 @@ function showNameInput() {
   overlayEl.classList.remove("hidden");
   overlayEl.innerHTML = `
     <div style="text-align:center; background:rgba(0,0,0,0.8); padding:40px; border-radius:15px; border:2px solid #4a627a;">
-      <h1 style="color:#ffcf6e; margin-bottom:30px;">입사 지원서 작성</h1>
+      <h1 style="color:#ffcf6e; margin-bottom:30px;">사원명 입력</h1>
       <p style="color:#fff; margin-bottom:10px;">당신의 사원명을 입력하세요:</p>
-      <input type="text" id="player-name-input" value="야근러" maxlength="10" 
+      <input type="text" id="player-name-input" value="야근러" maxlength="10"
         style="padding:10px; font-size:1.2rem; text-align:center; background:#222; color:#fff; border:1,px solid #444; margin-bottom:20,px; width:200px;">
-      <br>
+      <p style="color:#aaa; font-size:0.8rem; margin-top:10px; margin-bottom:20px;">입력한 사원명은 게임 클리어 시 랭킹(명예의 퇴근 명부)에 등록됩니다.</p>
       <button id="start-game-btn" style="padding:10px 30,px; font-size:1.1rem; cursor:pointer; background:#4a627a; color:#fff; border:none; border-radius:5px;">게임 시작</button>
     </div>
   `;
@@ -152,7 +152,7 @@ function showNameInput() {
 
   const startWithInput = () => {
     const name = input.value.trim() || "야근러";
-    showOpening(() => startRun(name));
+    showStyleSelect(name);
   };
 
   btn.onclick = startWithInput;
@@ -163,14 +163,76 @@ function showNameInput() {
   input.focus();
 }
 
-function startRun(name = "야근러") {
+function showStyleSelect(name) {
+  state.mode = "styleSelect";
+  overlayEl.classList.remove("hidden");
+
+  const styles = Config.CHARACTER_STYLES;
+  const styleIds = Object.keys(styles);
+  const keyMap = { vanguard: "1", striker: "2", phantom: "3" };
+  const colorMap = { vanguard: "#9dd6ff", striker: "#ffd28a", phantom: "#d8b7ff" };
+
+  const cardHtml = styleIds.map((id) => {
+    const s = styles[id];
+    const color = colorMap[id] || "#ccc";
+    const key = keyMap[id];
+    return `
+      <div id="style-card-${id}" data-style="${id}" style="
+        cursor:pointer; border:2px solid ${color}; border-radius:10px;
+        padding:18px 14px; width:180px; background:rgba(0,0,0,0.6);
+        transition:background 0.15s;
+      " onmouseover="this.style.background='rgba(255,255,255,0.08)'"
+         onmouseout="this.style.background='rgba(0,0,0,0.6)'">
+        <div style="color:${color}; font-size:1.1rem; font-weight:bold; margin-bottom:6px;">[${key}] ${escapeHtml(s.name)}</div>
+        <div style="color:#ccc; font-size:0.82rem; line-height:1.5; margin-bottom:10px;">${escapeHtml(s.desc)}</div>
+        <div style="color:#aaa; font-size:0.75rem; line-height:1.6;">
+          HP ${s.hpBonus >= 0 ? "+" : ""}${s.hpBonus} &nbsp;|&nbsp;
+          속도 ×${s.speedMul.toFixed(2)}<br>
+          대시CD ×${s.dashCdMul.toFixed(2)} &nbsp;|&nbsp;
+          회피 ${(s.dodgeChance * 100).toFixed(0)}%
+        </div>
+      </div>`;
+  }).join("");
+
+  overlayEl.innerHTML = `
+    <div style="text-align:center; background:rgba(0,0,0,0.85); padding:36px 28px; border-radius:15px; border:2px solid #4a627a; max-width:680px;">
+      <h2 style="color:#ffcf6e; margin-bottom:6px;">입사 유형 선택</h2>
+      <p style="color:#aaa; font-size:0.9rem; margin-bottom:24px;">${escapeHtml(name)} 사원의 전투 스타일을 선택하세요</p>
+      <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+        ${cardHtml}
+      </div>
+      <p style="color:#555; font-size:0.8rem; margin-top:18px;">숫자키 1/2/3 또는 카드 클릭</p>
+    </div>
+  `;
+
+  const pickStyle = (styleId) => {
+    if (!styles[styleId]) return;
+    showOpening(() => startRun(name, styleId));
+  };
+
+  styleIds.forEach((id) => {
+    document.getElementById(`style-card-${id}`).addEventListener("click", () => pickStyle(id));
+  });
+
+  // 숫자키 1/2/3로 선택
+  const styleKeyHandler = (e) => {
+    const picked = styleIds.find(id => keyMap[id] === e.key);
+    if (picked) {
+      document.removeEventListener("keydown", styleKeyHandler);
+      pickStyle(picked);
+    }
+  };
+  document.addEventListener("keydown", styleKeyHandler);
+}
+
+function startRun(name = "야근러", styleId = "striker") {
   // 새 게임 시작 시 이전 런 데이터 및 영구 업그레이드 초기화
   localStorage.clear();
   state.meta = SaveSystem.loadMeta(localStorage, META_STORAGE_KEY);
   
   state.player = PlayerSystem.createBasePlayer(state.meta);
-  state.player.codename = name; // 입력받은 이름 설정
-  PlayerSystem.applyCombatStyle(state.player, "striker");
+  state.player.codename = name;
+  PlayerSystem.applyCombatStyle(state.player, styleId);
   state.floorIndex = 0;
 
   enterFloor(state.floorIndex, true);
@@ -535,7 +597,7 @@ function enterFloor(idx, resetPlayerPos = false) {
     for (let i = state.player.tempBuffs.length - 1; i >= 0; i--) {
       const b = state.player.tempBuffs[i];
       b.floorsRemaining--;
-      if (b.floorsRemaining <= 0) {
+      if (b.floorsRemaining < 0) {
         if (b.add) state.player[b.stat] -= b.add;
         if (b.mul) state.player[b.stat] /= b.mul;
         log(`버프 만료: ${b.label}`);

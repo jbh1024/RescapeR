@@ -16,6 +16,8 @@ test.describe('RescapeR Ranking System Verification', () => {
     // 포커스 확인 후 엔터
     await input.focus();
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('2'); // 돌격형(Striker) 선택
 
     // 오프닝 시네마틱 + 게임 시작 대기
     const logElement = page.locator('#log');

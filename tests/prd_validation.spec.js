@@ -13,6 +13,8 @@ test.describe('PRD Validation Tests', () => {
     await expect(input).toBeVisible({ timeout: 5000 });
     await input.focus();
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('2'); // 돌격형(Striker) 선택
 
     // 오프닝 시네마틱 + 게임 시작 대기
     await expect(page.locator('#log')).toContainText('탈출을 시작합니다', { timeout: 20000 });

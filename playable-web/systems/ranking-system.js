@@ -34,7 +34,7 @@ export const RescapeRRankingSystem = {
 
       return data;
     } catch (error) {
-      console.error('Ranking submission failed, buffering locally:', error);
+      console.error('Ranking submission failed, buffering locally:', error.message);
       this.bufferRecord(name, timeSec, pay);
       return { success: false, buffered: true };
     }
@@ -77,7 +77,7 @@ export const RescapeRRankingSystem = {
       if (!response.ok) throw new Error('Failed to fetch rankings');
       return await response.json();
     } catch (error) {
-      console.error('Error fetching rankings:', error);
+      console.error('Error fetching rankings:', error.message);
       return { top10: [] };
     }
   }

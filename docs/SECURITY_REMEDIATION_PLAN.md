@@ -13,7 +13,7 @@
 |-------|--------|------|------|------|
 | **Phase 1** | CRITICAL / HIGH | 3건 | **완료** | `dba7d75` |
 | **Phase 2** | MEDIUM | 5건 (2건 제외) | **완료** | `ec3502d` |
-| **Phase 3** | LOW | 5건 | 미착수 (운영 지장 없음) |
+| **Phase 3** | LOW | 5건 | **완료** |
 
 ---
 
@@ -98,18 +98,15 @@
 
 ---
 
-## Phase 3 미착수 — LOW (운영 지장 없음)
+## Phase 3 완료 — LOW
 
-> 아래 항목들은 모두 LOW 심각도로, 현재 상태로 운영해도 보안이나 기능에 실질적 문제 없음.
-> 시간 여유가 있을 때 정리하는 수준으로 권장.
-
-| 순서 | 취약점 | 요약 | 관련 파일 |
-|------|--------|------|-----------|
-| 3-1 | Express 글로벌 에러 핸들링 | CORS 에러 시 HTML 스택 트레이스 노출 가능. Express 에러 미들웨어 + `process.on('unhandledRejection')` 추가 권장 | `server/index.js` |
-| 3-2 | Nginx 보안 헤더 보강 | HSTS(`Strict-Transport-Security`), `Permissions-Policy` 헤더 누락. HTTPS 환경 시 추가 권장 | `docker/nginx.conf` |
-| 3-3 | 프로덕션 console 로깅 정리 | 클라이언트 `console.error`에 에러 객체 전체 출력. 간결한 메시지로 교체 권장 | `ranking-system.js`, `server/db.js` |
-| 3-4 | 서버 에러 로깅 개선 | `NODE_ENV`에 따른 로그 상세도 분리 (`logError()` 헬퍼). 개발 시 스택 트레이스, 프로덕션 시 메시지만 | `server/index.js` |
-| 3-5 | Nginx 서버 버전 노출 차단 | 응답 헤더에 `nginx/1.x.x` 버전 노출. `server_tokens off;` 추가 권장 | `docker/nginx.conf` |
+| 순서 | 취약점 | 요약 | 관련 파일 | 상태 |
+|------|--------|------|-----------|------|
+| 3-1 | Express 글로벌 에러 핸들링 | `app.use((err,req,res,next)=>...)` 미들웨어 + `process.on('unhandledRejection')` 추가 | `server/index.js` | **완료** |
+| 3-2 | Nginx 보안 헤더 보강 | `Strict-Transport-Security`, `Permissions-Policy` 헤더 추가 | `docker/nginx.conf` | **완료** |
+| 3-3 | 프로덕션 console 로깅 정리 | `console.error`에 `error.message`만 출력하도록 수정 | `ranking-system.js` | **완료** |
+| 3-4 | 서버 에러 로깅 개선 | `logError()` 헬퍼 — 개발: 스택 트레이스, 프로덕션: 메시지만 | `server/index.js` | **완료** |
+| 3-5 | Nginx 서버 버전 노출 차단 | `server_tokens off;` 추가 | `docker/nginx.conf` | **완료** |
 
 ---
 

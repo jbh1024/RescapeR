@@ -9,8 +9,10 @@ test.describe('Opening Sequence', () => {
 
     const overlay = page.locator('#overlay');
 
-    // 게임 시작
+    // 게임 시작 → 스타일 선택(돌격형)
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('2');
 
     // 시네마틱 텍스트 컨테이너가 나타남
     const cinematicText = page.locator('#cinematic-text');
@@ -32,6 +34,8 @@ test.describe('Ending Sequence', () => {
     const input = page.locator('#player-name-input');
     await expect(input).toBeVisible();
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('2'); // 돌격형(Striker) 선택
 
     // 오프닝 종료 대기
     const logElement = page.locator('#log');

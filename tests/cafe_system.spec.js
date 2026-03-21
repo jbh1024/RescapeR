@@ -7,6 +7,8 @@ test.describe('RescapeR Cafe System', () => {
     const input = page.locator('#player-name-input');
     await expect(input).toBeVisible();
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('2'); // 돌격형(Striker) 선택
 
     const logElement = page.locator('#log');
     await expect(logElement).toContainText('탈출을 시작합니다', { timeout: 20000 });
@@ -223,15 +225,16 @@ test.describe('RescapeR Cafe System', () => {
     const buffAfter1 = await page.evaluate(() => window.gameState.player.tempBuffs[0]?.floorsRemaining);
     expect(buffAfter1).toBe(1);
 
-    // 9층으로 이동 (2층 소모 → 버프 만료)
+    // 9층으로 이동 — floorsRemaining이 0이 되지만 버프는 9층 동안 유지 (8층+9층 커버)
     await page.keyboard.down('Control');
     await page.keyboard.press(']');
     await page.keyboard.up('Control');
     await page.waitForTimeout(200);
 
+    const buffAfter2 = await page.evaluate(() => window.gameState.player.tempBuffs[0]?.floorsRemaining);
+    expect(buffAfter2).toBe(0); // floorsRemaining=0, 아직 만료 안 됨 (만료 조건: < 0)
     const buffCountFinal = await page.evaluate(() => window.gameState.player.tempBuffs.length);
-    expect(buffCountFinal).toBe(0);
-    await expect(logElement).toContainText('버프 만료');
+    expect(buffCountFinal).toBe(1); // 9층에서도 버프 활성 상태
   });
 
   test('보급소 아이템 구매 시 결과 배너가 표시된다', async ({ page }) => {

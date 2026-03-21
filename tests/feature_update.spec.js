@@ -14,6 +14,8 @@ test.describe('RescapeR Feature Updates', () => {
     const input = page.locator('#player-name-input');
     await expect(input).toBeVisible();
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('2'); // 돌격형(Striker) 선택
 
     // 오프닝 시네마틱 + 게임 시작 로그 확인
     const logElement = page.locator('#log');

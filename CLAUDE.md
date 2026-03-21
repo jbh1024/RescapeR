@@ -73,6 +73,23 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 ### 상태 관리
 모든 런타임 데이터는 `game.js`의 `state` 객체에서 관리. 전역 변수 사용 금지. `window.gameState`는 `?__test__` URL 파라미터가 있을 때만 노출 (테스트 전용).
 
+#### state.mode 전환 체계
+게임 흐름은 `state.mode` 값으로 제어됩니다. 허용되지 않은 모드에서는 입력/업데이트 로직이 차단됩니다.
+
+| mode | 진입 조건 | 설명 |
+|---|---|---|
+| `nameInput` | 초기 로드 | 사원명 입력 화면 |
+| `styleSelect` | 이름 입력 완료 후 | 캐릭터 스타일 선택 화면 (1선봉/2돌격/3유령) |
+| `playing` | 스타일 선택 → 오프닝 시네마틱 후 / 스킬 선택 후 / 상점 닫기 / 랭킹 닫기 | 실제 게임 진행 |
+| `skillSelect` | 층 클리어 (보스 처치) | 스킬 3택 오버레이 |
+| `shop` | Safe Zone(B1) 상호작용 | 보급소 상점 오버레이 |
+| `cafe` | Safe Zone(7F) 상호작용 | 사내카페 오버레이 |
+| `commute` | 출퇴근 조정신청 선택 | 출퇴근 조정 서브메뉴 |
+| `purchaseResult` | 상점/카페 아이템 구매 | 구매 결과 배너 표시 |
+| `ranking` | K 키 입력 | 명예의 퇴근 명부 오버레이 |
+| `dead` | 플레이어 HP 0 | 사망 화면 (R로 재시작) |
+| `clear` | 9F 보스 처치 후 엔딩 시네마틱 → | 퇴근 성공 화면 (기록 등록/초기화면) |
+
 ### 테스트 환경
 Playwright 기반 E2E 테스트. `playwright.config.js`에서 `http-server` 정적 서버를 자동 기동하여 `http://127.0.0.1:8000/playable-web/`을 대상으로 테스트.
 

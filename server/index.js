@@ -9,6 +9,16 @@ const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// NODE_ENV 기반 로그 헬퍼 — 프로덕션에서는 메시지만, 개발에서는 스택 트레이스 출력 (3-4)
+function logError(msg, err) {
+  if (IS_PROD) {
+    console.error(`[ERROR] ${msg}:`, err instanceof Error ? err.message : String(err));
+  } else {
+    console.error(`[ERROR] ${msg}:`, err);
+  }
+}
 const SECRET_KEY = process.env.RANKING_SECRET_KEY;
 
 if (!SECRET_KEY) {
@@ -64,7 +74,7 @@ app.get('/rescaper-api/rankings', queryLimiter, async (req, res) => {
     `);
     res.json({ top10: rows });
   } catch (err) {
-    console.error('[DB Error]', err.message);
+    logError('DB Error (rankings GET)', err);
     return res.status(500).json({ error: '데이터베이스 조회 중 오류가 발생했습니다.' });
   }
 });
@@ -108,17 +118,34 @@ app.post('/rescaper-api/rankings', submitLimiter, async (req, res) => {
     CryptoJS.enc.Utf8.parse(SECRET_KEY)
   ).toString(CryptoJS.enc.Hex);
 
-  // 6. 데이터 저장 (파싱된 값 사용)
+  // 6. 데이터 저장 — 트랜잭션으로 동시성 무결성 보장
+  const conn = await db.getConnection();
   try {
-    const [result] = await db.execute(
+    await conn.beginTransaction();
+    const [result] = await conn.execute(
       'INSERT INTO rankings (player_name, clear_time, total_overtime_pay, checksum) VALUES (?, ?, ?, ?)',
       [player_name, parsedTime, parsedPay, checksum]
     );
+    await conn.commit();
     res.json({ success: true, rank_id: result.insertId });
   } catch (err) {
-    console.error('[DB Error]', err.message);
+    await conn.rollback();
+    logError('DB Error (rankings POST)', err);
     return res.status(500).json({ error: '기록 저장 중 오류가 발생했습니다.' });
+  } finally {
+    conn.release();
   }
+});
+
+// 글로벌 에러 핸들러 — HTML 스택 트레이스 대신 JSON 응답 반환 (3-1)
+app.use((err, req, res, next) => {
+  logError('Unhandled error', err);
+  res.status(500).json({ error: '서버 내부 오류가 발생했습니다.' });
+});
+
+// 처리되지 않은 Promise 거부 처리 (3-1)
+process.on('unhandledRejection', (reason) => {
+  logError('Unhandled rejection', reason);
 });
 
 app.listen(PORT, () => {

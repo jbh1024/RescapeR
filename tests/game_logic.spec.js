@@ -18,6 +18,8 @@ test('game logic initializes and logs start message', async ({ page }) => {
   await expect(input).toBeVisible({ timeout: 5000 });
   await input.focus();
   await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  await page.keyboard.press('2'); // 돌격형(Striker) 선택
 
   // 오프닝 시네마틱 + 게임 시작 대기
   const logElement = page.locator('#log');
