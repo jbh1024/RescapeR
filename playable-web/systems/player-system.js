@@ -59,8 +59,8 @@ export const RescapeRPlayerSystem = {
   updatePhysics(p, dt, keys, platforms, groundY, worldWidth) {
     const dtSec = dt * 0.001;
     let move = 0;
-    if (keys["ArrowLeft"]) move--;
-    if (keys["ArrowRight"]) move++;
+    if (keys["ArrowLeft"] || keys["KeyA"]) move--;
+    if (keys["ArrowRight"] || keys["KeyD"]) move++;
     if (move !== 0) {
       p.facing = move;
       p.walkAnim += dtSec * 10;
@@ -76,7 +76,7 @@ export const RescapeRPlayerSystem = {
     }
     
     // 점프
-    if ((keys["ArrowUp"] || keys["w"] || keys["W"]) && p.onGround) {
+    if ((keys["ArrowUp"] || keys["KeyW"]) && p.onGround) {
       p.vy = -750;
       p.onGround = false;
     }

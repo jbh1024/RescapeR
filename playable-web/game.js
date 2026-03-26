@@ -157,7 +157,7 @@ function showNameInput() {
 
   btn.onclick = startWithInput;
   input.onkeydown = (e) => {
-    if (e.key === "Enter") startWithInput();
+    if (e.code === "Enter") startWithInput();
     e.stopPropagation(); // 게임 키 입력 방해 금지
   };
   input.focus();
@@ -169,13 +169,14 @@ function showStyleSelect(name) {
 
   const styles = Config.CHARACTER_STYLES;
   const styleIds = Object.keys(styles);
-  const keyMap = { vanguard: "1", striker: "2", phantom: "3" };
+  const keyMap = { vanguard: "Digit1", striker: "Digit2", phantom: "Digit3" };
+  const keyLabel = { vanguard: "1", striker: "2", phantom: "3" };
   const colorMap = { vanguard: "#9dd6ff", striker: "#ffd28a", phantom: "#d8b7ff" };
 
   const cardHtml = styleIds.map((id) => {
     const s = styles[id];
     const color = colorMap[id] || "#ccc";
-    const key = keyMap[id];
+    const key = keyLabel[id];
     return `
       <div id="style-card-${id}" data-style="${id}" style="
         cursor:pointer; border:2px solid ${color}; border-radius:10px;
@@ -216,7 +217,7 @@ function showStyleSelect(name) {
 
   // 숫자키 1/2/3로 선택
   const styleKeyHandler = (e) => {
-    const picked = styleIds.find(id => keyMap[id] === e.key);
+    const picked = styleIds.find(id => keyMap[id] === e.code);
     if (picked) {
       document.removeEventListener("keydown", styleKeyHandler);
       pickStyle(picked);
@@ -282,7 +283,7 @@ function updatePlayer(dt) {
   const p = state.player;
   PlayerSystem.updatePhysics(p, dt, InputSystem.keys, state.floor.platforms, GROUND_Y, WORLD_WIDTH);
 
-  if (InputSystem.isPressed(" ")) {
+  if (InputSystem.isPressed("Space")) {
     CombatSystem.handlePlayerAttack(state, FxSystem, AudioSystem, (e) => {
       e.defeated = true; 
       state.player.gold += 10;
@@ -312,7 +313,7 @@ function updatePlayer(dt) {
     });
   }
 
-  if (InputSystem.isPressed("shift") || InputSystem.isPressed("Shift")) {
+  if (InputSystem.isPressed("ShiftLeft") || InputSystem.isPressed("ShiftRight")) {
     if (p.dashTimer <= 0) {
       p.dashTimer = p.dashCd * (p.dashCdMul || 1);
       AudioSystem.playSfx(state, "dash");
@@ -384,7 +385,7 @@ function loop(now) {
     updateEnemies(dt);
     state.cameraX = Math.max(0, Math.min(WORLD_WIDTH - WIDTH, state.player.x - WIDTH * 0.35));
     state.runElapsedMs += dt;
-    if (InputSystem.isPressed("e")) {
+    if (InputSystem.isPressed("KeyE")) {
       // 1. 상점 체크 (B1 + 카페)
       if (state.floor.shop && CombatSystem.intersects(state.player, state.floor.shop)) {
         if (state.mode === "playing") showShop();
@@ -453,13 +454,13 @@ InputSystem.init((e, wasDown) => {
 
 
 
-  const key = e.key.toLowerCase();
-  
-  if (key === "r" && (state.mode === "dead" || state.mode === "clearChoice")) {
+  const code = e.code;
+
+  if (code === "KeyR" && (state.mode === "dead" || state.mode === "clearChoice")) {
     startRun();
   }
-  
-  if (key === "h") {
+
+  if (code === "KeyH") {
     const layout = document.querySelector(".layout");
     if (layout) {
       layout.classList.toggle("show-panels");
@@ -468,7 +469,7 @@ InputSystem.init((e, wasDown) => {
     }
   }
 
-  if (key === "k") {
+  if (code === "KeyK") {
     if (state.mode === "ranking") {
       // 1. 이미 랭킹 보드가 열려있는 경우 -> 닫기
       overlayEl.classList.add("hidden");
@@ -490,11 +491,11 @@ InputSystem.init((e, wasDown) => {
     }
   }
   
-  if (key === "p") {
+  if (code === "KeyP") {
     togglePause();
   }
 
-  if (key === "q") {
+  if (code === "KeyQ") {
     const p = state.player;
     if (p && state.mode === "playing" && state.running) {
       const kitIdx = p.inventory.findIndex(item => item === "회복키트");
@@ -516,32 +517,32 @@ InputSystem.init((e, wasDown) => {
   }
 
   if (state.mode === "skillSelect") {
-    if (key === "1") pickSkill(0);
-    if (key === "2") pickSkill(1);
-    if (key === "3") pickSkill(2);
+    if (code === "Digit1") pickSkill(0);
+    if (code === "Digit2") pickSkill(1);
+    if (code === "Digit3") pickSkill(2);
   }
 
   if (state.mode === "shop") {
-    if (key === "1") buyShopItem(0);
-    else if (key === "2") buyShopItem(1);
-    else if (key === "3") buyShopItem(2);
-    else if (key === "escape" || key === "e" || key === "p") closeShop();
+    if (code === "Digit1") buyShopItem(0);
+    else if (code === "Digit2") buyShopItem(1);
+    else if (code === "Digit3") buyShopItem(2);
+    else if (code === "Escape" || code === "KeyE" || code === "KeyP") closeShop();
     return;
   }
 
   if (state.mode === "cafe") {
-    if (key === "4") buyCafeItem(0);
-    else if (key === "5") buyCafeItem(1);
-    else if (key === "6") buyCafeItem(2);
-    else if (key === "escape" || key === "e" || key === "p") closeCafe();
+    if (code === "Digit4") buyCafeItem(0);
+    else if (code === "Digit5") buyCafeItem(1);
+    else if (code === "Digit6") buyCafeItem(2);
+    else if (code === "Escape" || code === "KeyE" || code === "KeyP") closeCafe();
     return;
   }
 
   if (state.mode === "commute") {
-    if (key === "1") buyCommute(0);
-    else if (key === "2") buyCommute(1);
-    else if (key === "3") buyCommute(2);
-    else if (key === "escape" || key === "e" || key === "p") showCafe();
+    if (code === "Digit1") buyCommute(0);
+    else if (code === "Digit2") buyCommute(1);
+    else if (code === "Digit3") buyCommute(2);
+    else if (code === "Escape" || code === "KeyE" || code === "KeyP") showCafe();
     return;
   }
 
@@ -610,9 +611,38 @@ function enterFloor(idx, resetPlayerPos = false) {
   log(`${info.name} 진입`);
 }
 
+function showElevatorQuote(onComplete) {
+  const quotes = Config.ELEVATOR_QUOTES;
+  const quote = quotes[Math.floor(Math.random() * quotes.length)];
+  state.running = false;
+  overlayEl.classList.remove("hidden");
+  overlayEl.innerHTML = `
+    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.85);">
+      <p id="elevator-quote" style="color:#aaa; font-size:1.3rem; font-style:italic; letter-spacing:0.04em; opacity:0; transition:opacity 0.6s;">
+        "${escapeHtml(quote)}"
+      </p>
+    </div>
+  `;
+  const el = document.getElementById("elevator-quote");
+  requestAnimationFrame(() => { el.style.opacity = "1"; });
+  setTimeout(() => {
+    el.style.opacity = "0";
+    setTimeout(() => {
+      overlayEl.classList.add("hidden");
+      state.running = true;
+      onComplete();
+    }, 600);
+  }, 2000);
+}
+
 function nextFloor() {
+  const isTestMode = new URL(location.href).searchParams.has('__test__');
   if (state.floorIndex < FLOOR_PLAN.length - 1) {
-    enterFloor(state.floorIndex + 1, true);
+    if (!isTestMode && Math.random() < 0.2) {
+      showElevatorQuote(() => enterFloor(state.floorIndex + 1, true));
+    } else {
+      enterFloor(state.floorIndex + 1, true);
+    }
   } else {
     onWin();
   }

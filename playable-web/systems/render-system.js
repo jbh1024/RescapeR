@@ -266,6 +266,15 @@ export const RescapeRRenderSystem = {
     }
     ctx.restore();
 
+    // E.V 표기
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "bold 14px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("E.V", gate.x + gate.w / 2, gate.y + gate.h / 2);
+    ctx.restore();
+
     if (isOpen) {
       ctx.fillStyle = "#fff";
       ctx.font = "bold 12px monospace";

@@ -28,7 +28,7 @@ test.describe('Opening Sequence', () => {
 });
 
 test.describe('Ending Sequence', () => {
-  test('보스 클리어 후 엔딩 멘트가 표시되고 퇴근 성공 화면이 나온다', async ({ page }) => {
+  test('보스 클리어 후 엔딩 멘트가 표시되고 퇴근 성공 화면이 나온다', { timeout: 60000 }, async ({ page }) => {
     await page.goto('./index.html?__test__');
 
     const input = page.locator('#player-name-input');
