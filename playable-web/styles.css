@@ -14,6 +14,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overscroll-behavior: none;
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
   color: var(--text);
   background:
@@ -115,5 +116,221 @@ canvas {
   #log,
   #controls {
     grid-column: 1;
+  }
+}
+
+/* ── Touch Gamepad ── */
+#touch-gamepad {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  z-index: 500;
+  pointer-events: none;
+  padding: 10px 20px env(safe-area-inset-bottom, 0);
+}
+
+#touch-gamepad.active {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+#touch-gamepad .pad-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+#touch-gamepad .pad-left {
+  width: 160px;
+  justify-content: center;
+}
+
+#touch-gamepad .pad-right {
+  width: 160px;
+  justify-content: center;
+}
+
+#touch-gamepad button {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  width: 60px;
+  height: 60px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+  font-weight: bold;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.05s;
+}
+
+#touch-gamepad button.pressed {
+  background: rgba(141, 224, 195, 0.35);
+  border-color: var(--accent);
+}
+
+#touch-gamepad .btn-jump {
+  margin: 0 auto 0 auto;
+  width: 100%;
+  max-width: 136px;
+  height: 48px;
+}
+
+/* ── Mobile mode ── */
+body.mobile-mode {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+body.mobile-mode .layout {
+  padding: 4px;
+  gap: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+body.mobile-mode .game-area {
+  flex: 1;
+  min-height: 0;
+}
+
+body.mobile-mode canvas {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 170px);
+  max-height: calc(100dvh - 170px);
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+body.mobile-mode .hud {
+  display: none !important;
+}
+
+/* ── Overlay mobile adjustments ── */
+@media (max-width: 768px) {
+  .overlay {
+    font-size: 0.9rem;
+    padding: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 시네마틱 (오프닝/엔딩) */
+  .overlay #cinematic-text {
+    font-size: 1.1rem !important;
+    line-height: 1.8 !important;
+    padding: 0 12px;
+  }
+
+  /* 엘리베이터 대사 */
+  .overlay #elevator-quote {
+    font-size: 1rem !important;
+    padding: 0 16px;
+  }
+
+  /* 제목류 축소 */
+  .overlay h1 {
+    font-size: 2rem !important;
+  }
+  .overlay h2 {
+    font-size: 1.1rem !important;
+    margin-bottom: 12px !important;
+  }
+  .overlay h3 {
+    font-size: 0.9rem !important;
+  }
+
+  /* 카드/아이템 그리드 반응형 */
+  .overlay div[style*="display:flex"][style*="gap"] {
+    gap: 8px !important;
+  }
+  .overlay div[style*="width:220px"],
+  .overlay div[style*="width:200px"],
+  .overlay div[style*="width:180px"] {
+    width: 140px !important;
+    padding: 10px 8px !important;
+  }
+
+  /* 설명 텍스트 */
+  .overlay p {
+    font-size: 0.82rem;
+    margin: 6px 0;
+  }
+
+  /* 버튼류 */
+  .overlay button {
+    font-size: 0.9rem !important;
+    padding: 8px 16px !important;
+  }
+
+  /* 구매 결과 배너 */
+  .overlay div[style*="padding:30px 50px"] {
+    padding: 16px 20px !important;
+  }
+  .overlay div[style*="padding:30px 50px"] h2 {
+    font-size: 1.3rem !important;
+  }
+  .overlay div[style*="padding:30px 50px"] p {
+    font-size: 0.9rem !important;
+  }
+
+  /* 클리어 화면 */
+  .overlay div[style*="min-width:350px"] {
+    min-width: auto !important;
+    width: 90% !important;
+  }
+  .overlay div[style*="min-width:300px"] {
+    min-width: auto !important;
+    width: 90% !important;
+  }
+
+  /* 랭킹 보드 */
+  .overlay div[style*="min-width:500px"] {
+    min-width: auto !important;
+    width: 95% !important;
+    padding: 16px !important;
+  }
+  .overlay table {
+    font-size: 0.85rem !important;
+  }
+  .overlay th, .overlay td {
+    padding: 6px 8px !important;
+  }
+
+  /* 스타일 선택 카드 */
+  .overlay div[style*="max-width:680px"] {
+    max-width: 100% !important;
+    padding: 16px 10px !important;
+  }
+
+  /* 이름 입력 */
+  .overlay input[type="text"] {
+    font-size: 1rem !important;
+    width: 160px !important;
+  }
+
+  /* 클리어 화면 큰 수치 텍스트 */
+  .overlay span[style*="font-size:1.8rem"] {
+    font-size: 1.2rem !important;
+  }
+  .overlay p[style*="font-size:1.5rem"] {
+    font-size: 1rem !important;
+  }
+  .overlay p[style*="font-size:1.2rem"] {
+    font-size: 0.9rem !important;
   }
 }

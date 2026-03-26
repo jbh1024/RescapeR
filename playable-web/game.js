@@ -13,6 +13,7 @@ import { RescapeRFloorSystem as FloorSystem } from './systems/floor-system.js';
 import { RescapeRPlayerSystem as PlayerSystem } from './systems/player-system.js';
 import { RescapeRAISystem as AISystem } from './systems/ai-system.js';
 import { RescapeRInputSystem as InputSystem } from './systems/input-system.js';
+import { RescapeRTouchSystem as TouchSystem } from './systems/touch-system.js';
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -24,7 +25,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const GROUND_Y = HEIGHT - 75;
 const WORLD_WIDTH = 3200;
-const APP_VERSION = "v1.3.0";
+const APP_VERSION = "v1.5.0";
 const SAVE_STORAGE_KEY = "rescaperSave";
 const META_STORAGE_KEY = "rescaperMeta";
 
@@ -270,9 +271,13 @@ function togglePause(forcePause = null) {
           <p style="font-size:1.2rem; margin:10px 0;"><b>현재 스테이지:</b> ${state.floor.info.name}</p>
           <p style="font-size:1.2rem; margin:10px 0;"><b>플레이 시간:</b> ${timeStr}</p>
         </div>
-        <p style="margin-top:30px; font-size:1rem; color:#aaa; animation: blink 1s infinite;">P를 눌러 재개</p>
+        <p style="margin-top:30px;">
+          <button id="pause-resume-btn" style="padding:10px 30px; font-size:1.1rem; cursor:pointer; background:#ffcf6e; color:#000; border:none; border-radius:8px; font-weight:bold;">계속하기</button>
+        </p>
+        <p style="margin-top:10px; font-size:0.85rem; color:#666;">또는 P 키를 눌러 재개</p>
       </div>
     `;
+    document.getElementById("pause-resume-btn").addEventListener("click", () => togglePause());
   } else {
     overlayEl.classList.add("hidden");
   }
@@ -448,14 +453,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-InputSystem.init((e, wasDown) => {
-  AudioSystem.unlockAudio();
-  if (wasDown) return; // 연속 입력(키 유지) 방지
-
-
-
-  const code = e.code;
-
+function handleDiscreteKey(code) {
   if (code === "KeyR" && (state.mode === "dead" || state.mode === "clearChoice")) {
     startRun();
   }
@@ -471,18 +469,15 @@ InputSystem.init((e, wasDown) => {
 
   if (code === "KeyK") {
     if (state.mode === "ranking") {
-      // 1. 이미 랭킹 보드가 열려있는 경우 -> 닫기
       overlayEl.classList.add("hidden");
       state.mode = state.prevMode || "playing";
       if (state.mode === "playing") state.running = true;
     } else if (state.mode === "playing") {
-      // 2. 게임 플레이 중인 경우 -> 랭킹 보드 열기
       state.prevMode = state.mode;
       state.mode = "ranking";
-      state.running = false; // 게임 일시정지
-      
+      state.running = false;
+
       UiSystem.showRankingBoard(overlayEl, RankingSystem, () => {
-        // '닫기' 버튼(DOM) 클릭 시 처리
         if (state.mode === "ranking") {
           state.mode = state.prevMode || "playing";
           if (state.mode === "playing") state.running = true;
@@ -490,7 +485,7 @@ InputSystem.init((e, wasDown) => {
       });
     }
   }
-  
+
   if (code === "KeyP") {
     togglePause();
   }
@@ -506,14 +501,6 @@ InputSystem.init((e, wasDown) => {
         log("회복키트 사용: HP +50");
       }
     }
-  }
-
-  const isPanelOpen = document.querySelector(".layout")?.classList.contains("show-panels");
-
-  if (isPanelOpen && e.ctrlKey) {
-    if (e.code === "BracketLeft") prevFloor();
-    if (e.code === "BracketRight") nextFloor();
-    if (e.code === "Digit0") state.player.gold += 100;
   }
 
   if (state.mode === "skillSelect") {
@@ -554,7 +541,26 @@ InputSystem.init((e, wasDown) => {
     }
     return;
   }
+}
+
+InputSystem.init((e, wasDown) => {
+  AudioSystem.unlockAudio();
+  if (wasDown) return; // 연속 입력(키 유지) 방지
+
+  // 이스터에그 (Ctrl + 키) — 키보드 전용
+  const isPanelOpen = document.querySelector(".layout")?.classList.contains("show-panels");
+  if (isPanelOpen && e.ctrlKey) {
+    if (e.code === "BracketLeft") prevFloor();
+    if (e.code === "BracketRight") nextFloor();
+    if (e.code === "Digit0") state.player.gold += 100;
+  }
+
+  handleDiscreteKey(e.code);
 });
+
+// 터치 시스템 초기화
+TouchSystem.init(InputSystem, handleDiscreteKey);
+if (TouchSystem.isMobile()) TouchSystem.show();
 
 window.addEventListener("blur", () => {
   togglePause(true);
@@ -807,18 +813,22 @@ function showShop() {
   overlayEl.innerHTML = `
     <div style="text-align:center; width:100%;">
       <h2 style="color:#ffd700; margin-bottom:20px;">${escapeHtml(state.floor.info.name)} 보급소 (보유 야근수당: ${state.player.gold})</h2>
-      <div style="display:flex; justify-content:center; gap:20px;">
+      <div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
         ${Config.SHOP_OPTIONS.map((opt, i) => `
-          <div style="background:rgba(0,0,0,0.7); border:2px solid #e67e22; padding:15px; width:220px;">
+          <div data-shop-index="${i}" style="background:rgba(0,0,0,0.7); border:2px solid #e67e22; padding:15px; width:220px; cursor:pointer;">
             <h3 style="margin:0; color:#fff;">${i+1}. ${opt.label}</h3>
             <p style="font-size:0.85rem; color:#ccc;">${opt.desc}</p>
             <p style="color:#ffd700; font-weight:bold;">비용: ${opt.cost}</p>
           </div>
         `).join('')}
       </div>
-      <p style="margin-top:20px; color:#aaa;">숫자 키 1, 2, 3 을 눌러 구매 | <b>ESC / P / E</b> 키로 나가기</p>
+      <p style="margin-top:20px; color:#aaa;">숫자 키 또는 터치로 구매 | <button id="shop-close-btn" style="background:none; border:1px solid #aaa; color:#aaa; padding:4px 12px; cursor:pointer; border-radius:4px; font-size:0.9rem;">나가기 (ESC)</button></p>
     </div>
   `;
+  overlayEl.querySelectorAll("[data-shop-index]").forEach((el) => {
+    el.addEventListener("click", () => buyShopItem(parseInt(el.dataset.shopIndex)));
+  });
+  document.getElementById("shop-close-btn").addEventListener("click", closeShop);
 }
 
 function buyShopItem(index) {
@@ -916,6 +926,16 @@ function showPurchaseResult(title, desc, color, onDone) {
   `;
 
   state._purchaseResultCallback = onDone;
+
+  const dismissHandler = () => {
+    overlayEl.removeEventListener("click", dismissHandler);
+    if (state.mode === "purchaseResult" && state._purchaseResultCallback) {
+      const cb = state._purchaseResultCallback;
+      state._purchaseResultCallback = null;
+      cb();
+    }
+  };
+  setTimeout(() => overlayEl.addEventListener("click", dismissHandler), 300);
 }
 
 function closeShop() {
@@ -937,21 +957,25 @@ function showCafe() {
   overlayEl.innerHTML = `
     <div style="text-align:center; width:100%;">
       <h2 style="color:#f5deb3; margin-bottom:20px;">7층 사내카페 (보유 야근수당: ${state.player.gold})</h2>
-      <div style="display:flex; justify-content:center; gap:20px;">
+      <div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
         ${Config.CAFE_EXTRA_OPTIONS.map((opt, i) => {
           const label = (i === 2) ? commuteLabel : opt.label;
           const dimStyle = (i === 2 && state.player.commuteUsed) ? "opacity:0.5;" : "";
           return `
-          <div style="background:rgba(0,0,0,0.7); border:2px solid #8b5e3c; padding:15px; width:220px; ${dimStyle}">
+          <div data-cafe-index="${i}" style="background:rgba(0,0,0,0.7); border:2px solid #8b5e3c; padding:15px; width:220px; cursor:pointer; ${dimStyle}">
             <h3 style="margin:0; color:#fff;">${opt.key}. ${escapeHtml(label)}</h3>
             <p style="font-size:0.85rem; color:#ccc;">${escapeHtml(opt.desc)}</p>
             <p style="color:#ffd700; font-weight:bold;">${opt.cost > 0 ? '비용: ' + opt.cost : '비용: 옵션별 상이'}</p>
           </div>`;
         }).join('')}
       </div>
-      <p style="margin-top:20px; color:#aaa;">숫자 키 4, 5, 6 을 눌러 이용 | <b>ESC / P / E</b> 키로 나가기</p>
+      <p style="margin-top:20px; color:#aaa;">숫자 키 또는 터치로 이용 | <button id="cafe-close-btn" style="background:none; border:1px solid #aaa; color:#aaa; padding:4px 12px; cursor:pointer; border-radius:4px; font-size:0.9rem;">나가기 (ESC)</button></p>
     </div>
   `;
+  overlayEl.querySelectorAll("[data-cafe-index]").forEach((el) => {
+    el.addEventListener("click", () => buyCafeItem(parseInt(el.dataset.cafeIndex)));
+  });
+  document.getElementById("cafe-close-btn").addEventListener("click", closeCafe);
 }
 
 function buyCafeItem(index) {
@@ -1035,18 +1059,22 @@ function showCommuteMenu() {
     <div style="text-align:center; width:100%;">
       <h2 style="color:#f5deb3; margin-bottom:20px;">출퇴근 조정신청 (보유 야근수당: ${state.player.gold})</h2>
       <p style="color:#ccc; margin-bottom:15px;">현재 플레이타임을 감소시킵니다 (1회 한정)</p>
-      <div style="display:flex; justify-content:center; gap:20px;">
-        ${Config.COMMUTE_OPTIONS.map((opt) => `
-          <div style="background:rgba(0,0,0,0.7); border:2px solid #8b5e3c; padding:15px; width:200px;">
+      <div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
+        ${Config.COMMUTE_OPTIONS.map((opt, i) => `
+          <div data-commute-index="${i}" style="background:rgba(0,0,0,0.7); border:2px solid #8b5e3c; padding:15px; width:200px; cursor:pointer;">
             <h3 style="margin:0; color:#fff;">${opt.key}. ${escapeHtml(opt.label)}</h3>
             <p style="font-size:0.85rem; color:#ccc;">${escapeHtml(opt.desc)}</p>
             <p style="color:#ffd700; font-weight:bold;">비용: ${opt.cost}</p>
           </div>
         `).join('')}
       </div>
-      <p style="margin-top:20px; color:#aaa;">숫자 키 1, 2, 3 을 눌러 선택 | <b>ESC / P / E</b> 키로 뒤로가기</p>
+      <p style="margin-top:20px; color:#aaa;">숫자 키 또는 터치로 선택 | <button id="commute-back-btn" style="background:none; border:1px solid #aaa; color:#aaa; padding:4px 12px; cursor:pointer; border-radius:4px; font-size:0.9rem;">뒤로가기 (ESC)</button></p>
     </div>
   `;
+  overlayEl.querySelectorAll("[data-commute-index]").forEach((el) => {
+    el.addEventListener("click", () => buyCommute(parseInt(el.dataset.commuteIndex)));
+  });
+  document.getElementById("commute-back-btn").addEventListener("click", showCafe);
 }
 
 function buyCommute(index) {

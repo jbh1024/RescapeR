@@ -37,10 +37,10 @@ cd server && npm install && node index.js   # http://localhost:3000
 docker compose -f docker/docker-compose.yml up --build   # http://localhost:8080
 
 # Docker Hub 배포 (게임 + 랭킹 서버, 멀티 아키텍처)
-./scripts/build-multiarch.sh v1.3.0 yourusername
+./scripts/build-multiarch.sh v1.5.0 yourusername
 
 # 프로덕션 실행 (Docker Hub에서 pull, 버전 지정 가능)
-RESCAPER_TAG=v1.3.0 docker compose -f docker/docker-compose.prod.yml up -d
+RESCAPER_TAG=v1.5.0 docker compose -f docker/docker-compose.prod.yml up -d
 # 또는 latest 사용
 docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docker/docker-compose.prod.yml up -d
 ```
@@ -65,7 +65,8 @@ docker compose -f docker/docker-compose.prod.yml pull && docker compose -f docke
 | `ai-system.js` | 몬스터 AI 행동 패턴 |
 | `ranking-system.js` | 랭킹 조회/등록, 오프라인 버퍼링 (체크섬은 서버 전용) |
 | `ui-system.js` | HTML DOM 오버레이 UI (스킬 선택, 상점, 정보 패널), XSS 방어 유틸리티 |
-| `input-system.js` | 키보드 입력 처리 |
+| `input-system.js` | 키보드 입력 처리 (`e.code` 기반, 한글 IME 호환) |
+| `touch-system.js` | 모바일 터치 가상 패드, 모바일 감지, 브라우저 기본 동작 방지 |
 | `fx-system.js` | 파티클, 데미지 텍스트, 화면 흔들림 |
 | `audio-system.js` | 사운드/BGM 관리 |
 | `save-system.js` | localStorage 기반 저장/로드, 메타데이터 무결성 검증 |
