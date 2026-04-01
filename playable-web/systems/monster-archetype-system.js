@@ -1,6 +1,6 @@
 const MOB_ARCHETYPES = {
   parking: {
-    "세단 미믹": { hp: 42, speed: 1.8, damage: 12, behavior: "chase", imgKey: "dark_guard" },
+    "세단 미믹": { hp: 42, speed: 1.8, damage: 12, behavior: "chase", imgKey: "goblin" },
     "매연 유령": { hp: 34, speed: 2.2, damage: 10, behavior: "kite", imgKey: "necromancer" },
     "불법주차 골렘": { hp: 68, speed: 1.2, damage: 18, behavior: "flank", imgKey: "golem" },
   },
@@ -10,8 +10,8 @@ const MOB_ARCHETYPES = {
     "국밥 연기 요정": { hp: 36, speed: 2.6, damage: 11, behavior: "flank", imgKey: "frog" },
   },
   lobby: {
-    "CCTV 비홀더": { hp: 52, speed: 1.9, damage: 15, behavior: "kite", imgKey: "dark_guard" },
-    "출입게이트 파수견": { hp: 60, speed: 2.3, damage: 16, behavior: "chase", imgKey: "goblin_hog" },
+    "CCTV 비홀더": { hp: 52, speed: 1.9, damage: 15, behavior: "kite", imgKey: "goblin" },
+    "출입게이트 파수견": { hp: 60, speed: 2.3, damage: 16, behavior: "chase", imgKey: "golem" },
     "QR 인증 파수병": { hp: 56, speed: 2.1, damage: 14, behavior: "flank", imgKey: "snail" },
   },
   showroom: {
@@ -22,7 +22,7 @@ const MOB_ARCHETYPES = {
   mobile: {
     "터치 제스처": { hp: 62, speed: 2.6, damage: 18, behavior: "chase", imgKey: "skull_slime" },
     "푸시 알림 떼": { hp: 48, speed: 3.2, damage: 14, behavior: "kite", imgKey: "bat" },
-    "랜덤박스 임프": { hp: 70, speed: 2.0, damage: 20, behavior: "flank", imgKey: "goblin_hog" },
+    "랜덤박스 임프": { hp: 70, speed: 2.0, damage: 20, behavior: "flank", imgKey: "golem" },
   },
   server: {
     "버그 떼": { hp: 68, speed: 2.8, damage: 19, behavior: "chase", imgKey: "mushroom" },
@@ -42,12 +42,12 @@ const MOB_ARCHETYPES = {
   support: {
     "콜센터 히드라": { hp: 105, speed: 2.4, damage: 26, behavior: "chase", imgKey: "snail" },
     "대기열 포식자": { hp: 78, speed: 4.0, damage: 22, behavior: "kite", imgKey: "bat" },
-    "실적 스캐너": { hp: 96, speed: 2.8, damage: 25, behavior: "flank", imgKey: "dark_guard" },
+    "실적 스캐너": { hp: 96, speed: 2.8, damage: 25, behavior: "flank", imgKey: "goblin" },
   },
   executive: {
     "인사팀 암살자": { hp: 120, speed: 2.8, damage: 30, behavior: "chase", imgKey: "necromancer" },
     "결재 도장 골렘": { hp: 150, speed: 2.2, damage: 35, behavior: "flank", imgKey: "golem" },
-    "리스크 심사관": { hp: 110, speed: 3.2, damage: 28, behavior: "kite", imgKey: "dark_guard" },
+    "리스크 심사관": { hp: 110, speed: 3.2, damage: 28, behavior: "kite", imgKey: "goblin" },
   },
 };
 

@@ -127,12 +127,13 @@ export const RescapeRRenderSystem = {
       spriteState = "fall";
     }
 
-    const frame = ART_FRAME_SPECS.player[artKey];
+    const styleSheet = ART_ASSETS.player[styleId] || ART_ASSETS.player.striker;
+    const frame = ART_FRAME_SPECS.player[spriteState] || ART_FRAME_SPECS.player.idle;
     this.drawGroundShadow(ctx, p.x + p.w * 0.5, p.y + p.h + 3, 26, p.onGround ? 0.25 : 0.14);
     
     let drawnImage = false;
-    if (ART_ASSETS.player[artKey]) {
-      drawnImage = this.drawImageSprite(ctx, ART_ASSETS.player[artKey], p.x, p.y, p.w, p.h, p.facing < 0, blink ? 0.6 : 1, frame);
+    if (styleSheet) {
+      drawnImage = this.drawImageSprite(ctx, styleSheet, p.x, p.y, p.w, p.h, p.facing < 0, blink ? 0.6 : 1, frame);
       
       // 공격 시 무기 잔상 효과 (이미지 모드일 때 추가)
       if (drawnImage && p.attackSwing > 0) {
@@ -171,8 +172,9 @@ export const RescapeRRenderSystem = {
 
   drawPlayerTrail(ctx, trail, ART_ASSETS, ART_FRAME_SPECS) {
     const styleId = trail.styleId || "striker";
-    const frame = ART_FRAME_SPECS.player["jump"]; // dash utilizes jump image mostly
-    const drawnImage = this.drawImageSprite(ctx, ART_ASSETS.player["jump"], trail.x, trail.y, trail.w, trail.h, trail.facing < 0, trail.alpha, frame);
+    const styleSheet = ART_ASSETS.player[styleId] || ART_ASSETS.player.striker;
+    const frame = ART_FRAME_SPECS.player["dash"] || ART_FRAME_SPECS.player["jump"];
+    const drawnImage = this.drawImageSprite(ctx, styleSheet, trail.x, trail.y, trail.w, trail.h, trail.facing < 0, trail.alpha, frame);
     if (!drawnImage) {
       ctx.save();
       ctx.globalAlpha = trail.alpha;
@@ -183,7 +185,8 @@ export const RescapeRRenderSystem = {
   },
 
   drawPlatform(ctx, plat, theme, ART_ASSETS) {
-    const tileImg = ART_ASSETS.tiles && ART_ASSETS.tiles.stoneMid;
+    const tileKey = theme.tile || "stoneMid";
+    const tileImg = ART_ASSETS.tiles && (ART_ASSETS.tiles[tileKey] || ART_ASSETS.tiles.stoneMid);
     if (tileImg && tileImg.complete && tileImg.naturalWidth) {
       ctx.save();
       const pattern = ctx.createPattern(tileImg, 'repeat');
@@ -207,7 +210,7 @@ export const RescapeRRenderSystem = {
     this.drawGroundShadow(ctx, e.x + e.w * 0.5, e.y + e.h + 4, e.type === "boss" ? 42 : 22, 0.2);
     
     const blink = e.hitFlash > 0;
-    const imgKey = e.type === "boss" ? "golem" : (e.imgKey || "dark_guard");
+    const imgKey = e.type === "boss" ? "golem" : (e.imgKey || "goblin");
     const img = ART_ASSETS.monsters[imgKey];
     const frame = ART_FRAME_SPECS.monsters[imgKey] || { w: 32, h: 32 };
     

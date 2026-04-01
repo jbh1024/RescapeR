@@ -3,7 +3,7 @@ import { RescapeRConfig as Config } from './data-config.js';
 export const RescapeRPlayerSystem = {
   createBasePlayer(meta) {
     const p = {
-      x: 0, y: 0, w: 32, h: 42, vx: 0, vy: 0, onGround: false,
+      x: 0, y: 0, w: 38, h: 72, vx: 0, vy: 0, onGround: false,
       hp: 100, maxHp: 100,
       baseSpeed: 4.5, speedMul: 1 + (meta.speedBonus || 0),
       baseDamage: 25, damageMul: 1 + (meta.damageBonus || 0),
@@ -26,9 +26,6 @@ export const RescapeRPlayerSystem = {
   },
 
   equipWeapon(p, weapon) {
-    // 이전 무기 효과 제거 (현재는 단순화하여 무기 객체만 교체하고 배율을 직접 조정)
-    // 실제로는 baseDamageMul 등을 두고 관리하는 것이 좋으나 기존 구조를 존중하여
-    // 무기 교체 시 기존 무기 배율을 나누고 새 무기 배율을 곱하는 식으로 처리
     if (p.weapon) {
       p.damageMul /= p.weapon.attackMul;
       p.attackCdMul /= p.weapon.attackCdMul;
@@ -75,9 +72,9 @@ export const RescapeRPlayerSystem = {
       p.vx = move * p.baseSpeed * p.speedMul * 60;
     }
     
-    // 점프
+    // 점프 (크기가 커진 만큼 점프력 강화)
     if ((keys["ArrowUp"] || keys["KeyW"]) && p.onGround) {
-      p.vy = -750;
+      p.vy = -850;
       p.onGround = false;
     }
 
