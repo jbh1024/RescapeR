@@ -18,6 +18,10 @@ npm run dev                # ./scripts/deploy.sh dev → http://localhost:8080
 # 구문 체크
 node --check playable-web/game.js
 
+# 픽셀아트 에셋 전량 재생성 (의존성 없음, 결정적 생성 — 상세: playable-web/assets/README.md)
+node scripts/generate-assets.js all
+# 카테고리별: player | monsters | boss | backgrounds | tiles | ui
+
 # 스모크 테스트
 npm run smoke
 

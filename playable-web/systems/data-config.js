@@ -101,6 +101,19 @@ const ART_FRAME_SPECS = {
   },
 };
 
+// 층 보스(엘리트) 렌더링용 zone → 보스 스프라이트 키 매핑
+const ZONE_BOSS_IMG = {
+  parking: "boss_parking",
+  lobby: "boss_lobby",
+  showroom: "boss_marketing",
+  conference: "boss_conference",
+  mobile: "boss_glitch",
+  server: "boss_server",
+  glitch: "boss_glitch",
+  marketing: "boss_marketing",
+  executive: "boss_ceo",
+};
+
 const FLOOR_PLAN = [
   { n: -6, name: "지하 6층 겁나좁은 주차장", zone: "parking", boss: "머리다을라" },
   { n: -5, name: "지하 5층 주차장", zone: "parking", boss: "멍멍이주차(실선밟기)" },
@@ -488,6 +501,7 @@ const CHARACTER_STYLES = {
 export const RescapeRConfig = {
   ART_ASSET_PATHS,
   ART_FRAME_SPECS,
+  ZONE_BOSS_IMG,
   FLOOR_PLAN,
   THEMES,
   ELEVATOR_QUOTES,

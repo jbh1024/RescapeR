@@ -29,3 +29,6 @@ Thumbs.db
 
 # Ranking DB (local dev)
 server/ranking.db
+
+# Playwright MCP artifacts
+.playwright-mcp/

@@ -207,10 +207,13 @@ export const RescapeRRenderSystem = {
   },
 
   drawEnemy(ctx, e, ART_ASSETS, ART_FRAME_SPECS, theme) {
-    this.drawGroundShadow(ctx, e.x + e.w * 0.5, e.y + e.h + 4, e.type === "boss" ? 42 : 22, 0.2);
-    
+    const isElite = e.type === "boss" || e.type === "exec";
+    this.drawGroundShadow(ctx, e.x + e.w * 0.5, e.y + e.h + 4, isElite ? 42 : 22, 0.2);
+
     const blink = e.hitFlash > 0;
-    const imgKey = e.type === "boss" ? "golem" : (e.imgKey || "goblin");
+    const imgKey = isElite
+      ? (Config.ZONE_BOSS_IMG[e.zone] || "boss_ceo")
+      : (e.imgKey || "goblin");
     const img = ART_ASSETS.monsters[imgKey];
     const frame = ART_FRAME_SPECS.monsters[imgKey] || { w: 32, h: 32 };
     

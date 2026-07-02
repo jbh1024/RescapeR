@@ -1,4 +1,4 @@
-const CACHE_NAME = "rescaper-cache-v2.0.0-rescaper-assets";
+const CACHE_NAME = "rescaper-cache-v2.1.0-worldview-hq-assets";
 const ASSETS = [
   "./",
   "./index.html",
